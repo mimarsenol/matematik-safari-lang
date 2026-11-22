@@ -39,6 +39,9 @@
     return `${n}'${r}`;
   }
 
+  // Üleştirme eki: 2'şer, 3'er, 6'şar, 9'ar …
+  const ds = n => n + "'" + ({ 0: 'ar', 1: 'er', 2: 'şer', 3: 'er', 4: 'er', 5: 'er', 6: 'şar', 7: 'şer', 8: 'er', 9: 'ar' })[n % 10] ;
+
   // ---------------------------------------------------------------- canlı öğretmen sesi
   let voice = null;
   const pickV = () => { try { const vs = speechSynthesis.getVoices().filter(v => /^tr/i.test(v.lang)); const sc = v => (/natural|neural|online/i.test(v.name) ? 8 : 0) + (/google/i.test(v.name) ? 4 : 0); voice = vs.sort((a, b) => sc(b) - sc(a))[0] || null; } catch (e) {} };
@@ -179,7 +182,11 @@
     sifirTutucu: { what: 'Boş basamağa 0 koymayı unuttun. 0, yeri tutan bekçidir.', fix: 'basamak' },
     birlerDegisti: { what: '10 ekleyince birler değil onlar değişir.', fix: 'onluk' },
     hepAsagi: { what: 'Hep aşağı yuvarladın. Ortadan (5) itibaren yukarıya yuvarlanır.', fix: 'dogru' },
-    eldeYok: { what: 'Birlikler 10\'u geçince yeni bir onluk oluşur, onu eklemeyi unuttun.', fix: 'kopru' }
+    eldeYok: { what: 'Birlikler 10\'u geçince yeni bir onluk oluşur, onu eklemeyi unuttun.', fix: 'kopru' },
+    parcaYanYana: { what: 'Parçaları topladın ama yan yana yazdın. Onlukların toplamı ile birliklerin toplamı da birleşmeli.', fix: 'onluk' },
+    carpmaToplama: { what: 'Sayıları topladın. Çarpma, aynı grubu tekrar tekrar eklemektir.', fix: 'esitGrup' },
+    grupKayma: { what: 'Bir grup fazla ya da eksik saydın. Grupları tek tek işaretleyerek say.', fix: 'esitGrup' },
+    kalanYok: { what: 'Bölme her zaman tam çıkmaz. Kimseye eşit verilemeyen balıklar artar.', fix: 'paylas' }
   };
 
   // ---------------------------------------------------------------- TAŞLAR
@@ -422,9 +429,118 @@
     sprint: () => { const a = R(21, 79), b = R(11, 19); return { kind: 'num', q: `${a} + ${b}`, ans: a + b }; }
   });
 
+  // ===== KAT 3 · İŞLEM ESNEKLİĞİ
+  const pv = n => { const h = Math.floor(n / 100) * 100, t = Math.floor(n % 100 / 10) * 10, o = n % 10; return [h, t, o].filter(Boolean).join(' + ') || '0'; };
+  add({ id: 'parcala', layer: 3, icon: '🧩', name: 'Parçala-birleştir', tag: '246 + 138 = 300 + 70 + 14', needs: ['dogruIslem', 'basamak'],
+    predict: () => ({ q: '47 + 36 için önce onlukları mı toplamak kolay, birlikleri mi?', choices: ['Önce onluklar', 'Önce birlikler', 'İkisi de olur'], ans: 2,
+      show: async () => { D.clear(); D.text(180, 40, '47 + 36', { size: 24 }); D.text(110, 90, '40 + 30 = 70', { size: 20, color: C.ten, delay: 300 }); D.text(250, 90, '7 + 6 = 13', { size: 20, color: C.one, delay: 700 }); await say('Sayıları parçalarına ayıralım: kırk ile otuz, yetmiş. Yedi ile altı, on üç.'); D.text(180, 150, '70 + 13 = 83', { size: 24, color: C.green, delay: 200 }); await say('Sonra parçaları birleştiririz: yetmiş artı on üç, seksen üç. Hangi sırayla toplasan aynı sonuç!'); } }),
+    model: async ask => {
+      D.clear(); D.text(180, 32, '256 + 138', { size: 24 });
+      D.text(180, 72, '200 + 50 + 6', { size: 18, color: C.ink, delay: 200 }); D.text(180, 98, '100 + 30 + 8', { size: 18, color: C.ink, delay: 400 });
+      await say('Her sayıyı evlerine ayırdım: yüzler, onlar, birler.');
+      const r1 = await ask({ q: 'Yüzler: 200 + 100 = ?', ans: 300, why: 'iki yüz ile yüz, üç yüz.' });
+      const r2 = await ask({ q: 'Onlar: 50 + 30 = ?', ans: 80, why: 'beş onluk ile üç onluk, sekiz onluk.' });
+      const r3 = await ask({ q: 'Birler: 6 + 8 = ?', ans: 14, why: 'altı ile sekiz, on dört.' });
+      D.text(180, 150, '300 + 80 + 14 = 394', { size: 22, color: C.green }); await say('Şimdi birleştir: üç yüz, seksen ve on dört. Üç yüz doksan dört!');
+      return r1 && r2 && r3;
+    },
+    gen: d => {
+      let a, b; if (d === 1) { a = R(25, 69); b = R(15, 29); if (a % 10 + b % 10 < 10) b += 10 - (a % 10 + b % 10); } else if (d === 2) { a = R(120, 680); b = R(25, 89); } else { a = R(135, 588); b = R(126, 399); }
+      const ans = a + b, tens = Math.floor(a / 10) * 10 + Math.floor(b / 10) * 10, ones = a % 10 + b % 10;
+      const noCarry = Math.floor(a / 10) * 10 + Math.floor(b / 10) * 10 + ones % 10;
+      return { kind: 'num', q: `${a} + ${b} = ?`, ans, why: `${pv(a)} ve ${pv(b)} parçalarını birleştir: ${ans}.`,
+        bug: x => (x === noCarry && noCarry !== ans ? 'eldeYok' : ones > 9 && String(x) === `${tens / 10}${ones}` ? 'parcaYanYana' : null),
+        hint: 'Önce yüzleri, sonra onları, sonra birleri topla.', vis2: () => { D.clear(); D.text(180, 35, `${a} + ${b}`, { size: 22 }); D.text(180, 75, pv(a), { size: 17 }); D.text(180, 100, pv(b), { size: 17, delay: 200 }); D.text(180, 150, `= ${ans}`, { size: 24, color: C.green, delay: 500 }); } };
+    },
+    sprint: () => { const a = R(21, 69), b = R(11, 29); return { kind: 'num', q: `${a} + ${b}`, ans: a + b }; }
+  });
+
+  add({ id: 'cikarmaYol', layer: 3, icon: '➖', name: 'Çıkarma yolları', tag: '52 − 27: 27\'den 52\'ye ileri say', needs: ['parcala', 'kopruCik'],
+    predict: () => ({ q: '52 − 27 için 27\'den 52\'ye kadar ileri saymak işe yarar mı?', choices: ['Evet', 'Hayır'], ans: 0,
+      show: async () => { D.clear(); const L = D.nline(20, 60, 30, 330, 120, { tick: 10, lab: 10, fs: 13 }); D.mark(L.pos(27), 120, '27'); await sleep(300); D.jump(L.pos(27), L.pos(30), 120, '+3'); D.jump(L.pos(30), L.pos(50), 120, '+20', { color: C.ten }); D.jump(L.pos(50), L.pos(52), 120, '+2', { color: C.green }); await say('Çıkarma, iki sayı arasındaki mesafedir! Yirmi yediden otuza üç, otuzdan elliye yirmi, elliden elli ikiye iki. Toplam yirmi beş.'); } }),
+    model: async ask => {
+      D.clear(); D.text(180, 30, '63 − 28', { size: 22 }); const L = D.nline(20, 70, 30, 330, 120, { tick: 10, lab: 10, fs: 13 }); D.mark(L.pos(28), 120, '28'); D.mark(L.pos(63), 120, '63', C.green);
+      await say('Altmış üç ile yirmi sekiz arasındaki mesafeyi bulalım. Yirmi sekizden başlıyorum.');
+      D.jump(L.pos(28), L.pos(30), 120, '+2');
+      const r1 = await ask({ q: '30\'dan 60\'a kaç adım?', ans: 30, why: 'üç onluk.' });
+      D.jump(L.pos(30), L.pos(60), 120, '+30', { color: C.ten }); D.jump(L.pos(60), L.pos(63), 120, '+3', { color: C.green });
+      const r2 = await ask({ q: '2 + 30 + 3 = ?', ans: 35, why: 'mesafe otuz beş.' });
+      return r1 && r2;
+    },
+    gen: d => {
+      let a, b; if (d === 1) { a = R(32, 69); b = R(11, a - 12); if (a % 10 >= b % 10) b = Math.floor(b / 10) * 10 + Math.min(9, a % 10 + R(1, 3)); } else if (d === 2) { a = R(41, 98); b = R(15, a - 11); } else { a = R(203, 702); b = R(118, a - 50); }
+      if (b >= a) b = a - R(11, 19);
+      const ans = a - b, colDiff = Number(String(a).split('').reverse().map((c, i) => Math.abs(+c - +(String(b).split('').reverse()[i] || 0))).reverse().join(''));
+      const up = Math.ceil(b / 10) * 10;
+      return { kind: 'num', q: `${a} − ${b} = ?`, ans, why: up < a ? `${b} → ${up} (+${up - b}), ${up} → ${a} (+${a - up}): toplam ${ans}.` : `${a} − ${b} = ${ans}.`,
+        bug: x => (x === colDiff && colDiff !== ans ? 'tersCikarma' : null), hint: `${sx(b, 'abl')} başla, ${sx(a, 'dat')} kadar ileri say: önce ${sx(up, 'dat')}.`,
+        vis2: () => { D.clear(); const lo = Math.floor(b / 10) * 10, hi = Math.ceil(a / 10) * 10; const L = D.nline(lo, hi, 30, 330, 120, { tick: hi - lo > 100 ? 50 : 10, lab: hi - lo > 100 ? 100 : 10, fs: 12 }); D.mark(L.pos(b), 120, String(b)); D.mark(L.pos(a), 120, String(a), C.green); if (up < a) { D.jump(L.pos(b), L.pos(up), 120, `+${up - b}`); D.jump(L.pos(up), L.pos(a), 120, `+${a - up}`, { color: C.ten }); } } };
+    },
+    sprint: () => { const a = R(31, 99), b = R(11, a - 5); return { kind: 'num', q: `${a} − ${b}`, ans: a - b }; }
+  });
+
+  add({ id: 'esitGrup', layer: 3, icon: '🐒', name: 'Eşit gruplar', tag: 'Maymunun köprüsü: 3 tahta × 4 adım', needs: ['zipla10', 'kopru'],
+    predict: () => ({ q: 'Maymun nehri geçecek: nehir 12 adım, her tahta 4 adım. Kaç tahta gerekir?', choices: ['2', '3', '4'], ans: 1,
+      show: async () => { D.clear(); const L = D.nline(0, 12, 30, 330, 140, { tick: 1, lab: 4 }); let x = 0; for (let i = 0; i < 3; i++) { el('rect', { x: L.pos(x), y: 118, width: L.pos(4) - L.pos(0), height: 14, fill: '#b07a3c', stroke: '#7a4f1c', rx: 3 }); D.jump(L.pos(x), L.pos(x + 4), 112, '+4'); x += 4; await sleep(500); } await say('Dörder dörder: dört, sekiz, on iki. Üç tahta! Üç kere dört, on iki. İşte çarpma: aynı grubu tekrar tekrar eklemek.'); } }),
+    model: async ask => {
+      D.clear(); for (let g = 0; g < 3; g++) { D.circle(70 + g * 110, 100, 42, C.green); D.dots(5, 70 + g * 110, 100); }
+      await say('Üç sepet, her sepette beş muz.');
+      const r1 = await ask({ q: '5 + 5 + 5 = ?', ans: 15, why: 'beşer beşer: beş, on, on beş.' });
+      D.text(180, 185, '3 × 5 = 15', { size: 24, color: C.red }); await say('Bunun kısa yazılışı: üç kere beş, on beş.');
+      return r1;
+    },
+    gen: d => {
+      const g = d === 1 ? R(2, 4) : R(2, 6), n = d === 1 ? R(2, 5) : R(3, 8);
+      if (d === 2) return { kind: 'bridge', L: g * n, s: n, q: `🐒 Nehir ${g * n} adım, her tahta ${n} adım. Köprüyü kur!`, ans: g, why: `${g} × ${n} = ${g * n}.`, hint: `${ds(n)} ${ds(n)} say: ${n}, ${2 * n}, ${3 * n}…` };
+      if (d === 1) return { kind: 'num', q: `${g} grup, her grupta ${n}. Toplam kaç?`, ans: g * n, vis: () => { D.clear(); for (let k = 0; k < g; k++) { const cx = 360 / (g + 1) * (k + 1); D.circle(cx, 100, 40, C.green); D.dots(n, cx, 100); } }, why: `${g} kere ${n}, ${g * n}.`, bug: x => (x === g + n ? 'carpmaToplama' : x === (g + 1) * n || x === (g - 1) * n ? 'grupKayma' : null), hint: `${ds(n)} ${ds(n)} say.` };
+      return { kind: 'num', q: `${g} sepette ${ds(n)} muz var. Kaç muz eder?`, ans: g * n, why: `${g} × ${n} = ${g * n}.`, bug: x => (x === g + n ? 'carpmaToplama' : x === (g + 1) * n || x === (g - 1) * n ? 'grupKayma' : null), hint: 'Aynı grubu kaç kere ekliyoruz?' };
+    },
+    sprint: () => { const g = R(2, 5), n = R(2, 5); return { kind: 'num', q: `${g} × ${n}`, ans: g * n }; }
+  });
+
+  add({ id: 'izgara', layer: 3, icon: '🔲', name: 'Çarpım ızgarası', tag: '7 × 8 = 5 × 8 + 2 × 8', needs: ['esitGrup'],
+    predict: () => ({ q: '3 × 5 ile 5 × 3 aynı mı?', choices: ['Aynı', 'Farklı'], ans: 0,
+      show: async () => { D.clear(); for (let r = 0; r < 3; r++) for (let c = 0; c < 5; c++) D.dot(110 + c * 30, 60 + r * 30, { delay: (r * 5 + c) * 40 }); await say('Üç sıra, beşer nokta. Şimdi kafanı yan çevir: beş sıra, üçer nokta. Noktalar hiç değişmedi, ikisi de on beş!'); } }),
+    model: async ask => {
+      D.clear(); D.text(180, 26, '7 × 8', { size: 22 });
+      for (let r = 0; r < 7; r++) for (let c = 0; c < 8; c++) D.dot(80 + c * 26, 48 + r * 21, { r: 7, color: r < 5 ? C.dot : C.ten, delay: (r * 8 + c) * 12 });
+      D.line(60, 48 + 4.5 * 21, 300, 48 + 4.5 * 21, { color: C.red, w: 3 });
+      await say('Yedi sıra, sekizer nokta. Zor görünüyor ama ızgarayı ikiye bölelim: üstte beş sıra, altta iki sıra.');
+      const r1 = await ask({ q: '5 × 8 = ?', ans: 40, why: 'beşin sekiz katı kırk.' });
+      const r2 = await ask({ q: '2 × 8 = ?', ans: 16, why: 'sekizin iki katı on altı.' });
+      const r3 = await ask({ q: '40 + 16 = ?', ans: 56, why: 'yedi kere sekiz, elli altı.' });
+      return r1 && r2 && r3;
+    },
+    gen: d => {
+      if (d === 1) { const r = R(2, 5), c = R(2, 6); return { kind: 'num', q: 'Izgarada kaç nokta var?', ans: r * c, vis: () => { D.clear(); for (let i = 0; i < r; i++) for (let j = 0; j < c; j++) D.dot(180 - (c - 1) * 15 + j * 30, 105 - (r - 1) * 15 + i * 30, { delay: (i * c + j) * 30 }); }, why: `${r} sıra × ${c} = ${r * c}.`, bug: x => (x === r + c ? 'carpmaToplama' : null), hint: 'Bir sırada kaç nokta var? Kaç sıra var?' }; }
+      if (d === 2) { const a = R(6, 9), b = R(3, 9); return { kind: 'num', q: `${a} × ${b} = ?`, ans: a * b, why: `${a} × ${b} = 5 × ${b} + ${a - 5} × ${b} = ${5 * b} + ${(a - 5) * b} = ${a * b}.`, bug: x => (x === a + b ? 'carpmaToplama' : x === (a - 1) * b || x === (a + 1) * b ? 'grupKayma' : null), hint: `Böl: 5 × ${b} ve ${a - 5} × ${b}.` }; }
+      const a = R(3, 9), b = R(3, 9); return { kind: 'num', q: `${a} × ▢ = ${a * b}`, ans: b, why: `${a} × ${b} = ${a * b}.`, bug: x => (x === a * b - a ? 'carpmaToplama' : null), hint: `${ds(a)} ${ds(a)} say: ${sx(a * b, 'dat')} kaç adımda varırsın?` };
+    },
+    sprint: () => { const a = R(2, 9), b = R(2, 9); return { kind: 'num', q: `${a} × ${b}`, ans: a * b }; }
+  });
+
+  add({ id: 'paylas', layer: 3, icon: '🐧', name: 'Paylaştırma', tag: 'Penguenler balıkları eşit paylaşır', needs: ['esitGrup'],
+    predict: () => ({ q: '12 balık 3 penguene eşit paylaşılırsa her birine kaç düşer?', choices: ['3', '4', '6'], ans: 1,
+      show: async () => { D.clear(); for (let k = 0; k < 3; k++) { D.text(70 + k * 110, 60, '🐧', { size: 36 }); for (let f = 0; f < 4; f++) D.text(70 + k * 110, 100 + f * 24, '🐟', { size: 18, delay: (f * 3 + k) * 120 }); } await say('Sırayla birer birer dağıtalım: her penguene bir, bir daha, bir daha… On iki balık bitince her penguende dört balık var. On iki bölü üç, dört.'); } }),
+    model: async ask => {
+      D.clear(); for (let k = 0; k < 4; k++) D.text(55 + k * 85, 60, '🐧', { size: 34 });
+      await say('Dört penguen, yirmi balık. Bölme, eşit paylaştırmaktır. Her tura her penguene bir balık veririz.');
+      for (let t = 0; t < 5; t++) for (let k = 0; k < 4; k++) D.text(55 + k * 85, 95 + t * 22, '🐟', { size: 16, delay: (t * 4 + k) * 80 });
+      await sleep(1500);
+      const r1 = await ask({ q: '20 ÷ 4 = ? (her penguene kaç balık?)', ans: 5, why: 'beş tur döndük, her penguene beş.' });
+      D.text(180, 205, '4 × 5 = 20', { size: 18, color: C.green }); await say('Bak: dört kere beş, yirmi. Bölme, çarpmanın tersidir!');
+      return r1;
+    },
+    gen: d => {
+      const k = d === 1 ? R(2, 3) : R(2, 5), q = d === 1 ? R(2, 4) : R(2, 6), rem = d === 3 ? R(1, k - 1) : 0, N = k * q + rem;
+      if (d === 2 && chance(.5)) return { kind: 'num', q: `${N} balık ${k} penguene eşit paylaşılıyor. Her birine kaç düşer?`, ans: q, why: `${k} × ${q} = ${N}, yani ${N} ÷ ${k} = ${q}.`, bug: x => (x === N - k || x === N * k ? 'carpmaToplama' : null), hint: `${k} kere kaç ${N} eder?` };
+      return { kind: 'share', N, k, ans: q, rem, q: rem ? `🐧 ${N} balığı ${k} penguene eşit dağıt. Eşit verilemeyenler artsın!` : `🐧 ${N} balığı ${k} penguene eşit dağıt!`, why: rem ? `her birine ${q}, artan ${rem}.` : `her birine ${q}: ${k} × ${q} = ${N}.`, hint: 'Her penguene sırayla birer balık ver.' };
+    },
+    sprint: () => { const k = R(2, 6), q = R(2, 9); return { kind: 'num', q: `${k * q} ÷ ${k}`, ans: q }; }
+  });
+
   // ===== ÜST KATLAR (yapım aşamasında) — piramidin tamamını göstermek için
   const FUTURE = [
-    [3, ['🧩 Parçala-birleştir', '➖ Çıkarma yolları', '✖️ Eşit gruplar', '🔲 Çarpım ızgarası', '🍰 Paylaştırma']],
     [4, ['🍕 Eşit parça', '📏 Doğruda kesir', '🪞 Denk kesirler', '🔟 Ondalık', '💯 Yüzde']],
     [5, ['⚖️ Terazi', '📦 Bilinmeyen kutu', '🔁 Örüntü', '🧮 Denklem']],
     [6, ['📊 Şerit modeli', '🧠 Çok adımlı problem']]
@@ -499,7 +615,7 @@
       <span>⬜ kilitli</span><span>🟧 sıradaki</span><span style="color:#2bb3a3">■ kuruldu</span><span style="color:#d89200">■ altın</span><span>🔁 tekrar zamanı</span><span>⚡ çatlak</span></div></div>`;
     h += `<button class="btn green" id="pyGo">${due.length ? `🔁 Bugünün tırmanışı (${due.length} tekrar${fr ? ' + yeni taş' : ''})` : fr ? `🧱 Sıradaki taş: ${fr.icon} ${fr.name}` : '🏆 Hepsi kuruldu!'}</button>`;
     h += `<div class="pyr-wrap">`;
-    [1, 2].forEach(L => {
+    [1, 2, 3].forEach(L => {
       h += `<div class="pyr-row">${SK.filter(s => s.layer === L).map(s => { const x = st(s.id); const cls = x.lvl >= 3 ? 'b' + x.lvl : isOpen(s) ? (x.lvl ? 'b' + x.lvl : 'open') : ''; return `<button class="brick ${cls} ${x.crack ? 'crack' : ''} ${isDue(s) ? 'due' : ''}" data-sk="${s.id}"><span class="ic">${isOpen(s) || x.lvl ? s.icon : '🔒'}</span>${s.name}</button>`; }).join('')}</div><div class="pyr-lab">${L}. kat · ${LAYER[L]}</div>`;
     });
     FUTURE.forEach(([L, list]) => { h += `<div class="pyr-row">${list.map(n => `<span class="brick future"><span class="ic">${n.split(' ')[0]}</span>${n.split(' ').slice(1).join(' ')}</span>`).join('')}</div><div class="pyr-lab">${L}. kat · ${LAYER[L]} <span style="font-weight:600">(yapım aşamasında 🏗️)</span></div>`; });
@@ -592,6 +708,45 @@
       $('pdFOk').onclick = () => res(added.length);
     });
   }
+  // Maymunun köprüsü: nehri eşit tahtalarla geç (eşit gruplar / tekrarlı toplama)
+  function askBridge(p) {
+    return new Promise(res => {
+      let n = 0; const tick = p.L <= 20 ? 1 : p.s;
+      const draw = () => {
+        D.clear(); el('rect', { x: 30, y: 128, width: 300, height: 30, fill: '#8ecae6', opacity: .6 });
+        D.text(20, 120, '🐒', { size: 26 }); D.text(345, 120, '🍌', { size: 22 });
+        const L = D.nline(0, p.L, 30, 330, 128, { tick, lab: p.s, fs: 12 });
+        for (let i = 0; i < n; i++) { const a = Math.min(p.L, i * p.s), b = Math.min(p.L + p.s * 2, (i + 1) * p.s); el('rect', { x: L.pos(a), y: 106, width: Math.max(4, Math.min(330, L.pos(b)) - L.pos(a) - 2), height: 14, fill: '#b07a3c', stroke: '#7a4f1c', rx: 3 }); }
+        if (n) D.text(180, 40, `${n} tahta = ${n * p.s} adım`, { size: 19, color: n * p.s === p.L ? C.green : n * p.s > p.L ? C.red : C.ink });
+      };
+      draw();
+      area().innerHTML = note + `<div class="pd-q">${p.q}</div><div class="pd-build"><button data-b="+">+ tahta (${p.s})</button><button data-b="-">− tahta</button></div><button class="btn green" id="pdBrOk" style="margin-top:8px">Köprü hazır ✔</button>`;
+      area().querySelectorAll('[data-b]').forEach(b => b.onclick = () => { sndTap(); if (b.dataset.b === '+' && n < 12) n++; if (b.dataset.b === '-' && n) n--; draw(); });
+      $('pdBrOk').onclick = () => res(n);
+    });
+  }
+  // Penguenin balık paylaşımı: penguene dokun → bir balık ver (bölme = eşit paylaştırma)
+  function askShare(p) {
+    return new Promise(res => {
+      const got = Array(p.k).fill(0); let pool = p.N;
+      const xs = i => 360 / (p.k + 1) * (i + 1);
+      const draw = () => {
+        D.clear(); D.text(180, 26, `Kalan balık: ${pool} 🐟`, { size: 18, color: pool ? C.ink : C.green });
+        for (let i = 0; i < p.k; i++) {
+          D.text(xs(i), 68, '🐧', { size: 32 });
+          for (let f = 0; f < got[i]; f++) D.text(xs(i) - 12 + (f % 2) * 24, 96 + Math.floor(f / 2) * 18, '🐟', { size: 15 });
+          const hit = el('rect', { x: xs(i) - 30, y: 38, width: 60, height: 170, fill: 'transparent', style: 'cursor:pointer' });
+          hit.onclick = () => { if (!pool) return; sndTap(); got[i]++; pool--; draw(); };
+        }
+      };
+      draw();
+      area().innerHTML = note + `<div class="pd-q">${p.q}</div><p class="muted" style="text-align:center;margin:0">Bir penguene dokununca ona bir balık verirsin.</p>
+        <div class="pd-build"><button data-s="all">Her birine birer ver 🔁</button><button data-s="undo">Baştan başla ↩</button></div><button class="btn green" id="pdShOk" style="margin-top:8px">Paylaştırdım ✔</button>`;
+      area().querySelector('[data-s="all"]').onclick = () => { sndTap(); if (pool >= p.k) { for (let i = 0; i < p.k; i++) got[i]++; pool -= p.k; draw(); } };
+      area().querySelector('[data-s="undo"]').onclick = () => { sndTap(); got.fill(0); pool = p.N; draw(); };
+      $('pdShOk').onclick = () => res({ got: [...got], pool });
+    });
+  }
   async function flashShow(n, ms) { D.clear(); D.dots(n, 180, 105, { rows: n > 5 }); await sleep(ms); D.clear(); D.text(180, 110, '?', { size: 60, color: C.gray }); }
 
   // Bir problemi sor + hata dedektifi + ipucu merdiveni. Döner: {ok, first, mis}
@@ -606,6 +761,14 @@
       if (p.kind === 'choice' || p.kind === 'flash') { const i = await askChoice(p.q, p.choices.map(String)); val = p.kind === 'flash' ? Number(p.choices[i]) : i; ok = p.kind === 'flash' ? val === p.ans : i === p.ans; }
       else if (p.kind === 'line') { const r = await askLine(p); val = r.v; ok = Math.abs(r.v - p.ans) <= (p.tol || 0); if (!ok || true) D.mark(r.L.pos(p.ans), 120, ok ? '' : String(p.ans), C.green); }
       else if (p.kind === 'fill') { val = await askFill(p); ok = val === p.ans; }
+      else if (p.kind === 'bridge') { val = await askBridge(p); ok = val === p.ans; if (!ok && val > 0 && (val + 1 === p.ans || val - 1 === p.ans)) mis = 'grupKayma'; }
+      else if (p.kind === 'share') {
+        const r = await askShare(p); const eq = r.got.every(g => g === r.got[0]);
+        ok = eq && r.got[0] === p.ans && r.pool === p.rem; val = r.got[0];
+        if (!ok && eq && r.pool >= p.k) mis = null; // dağıtım bitmedi
+        if (!ok && !eq) p.hint = 'Herkeste eşit sayıda balık olmalı. Sırayla birer birer ver.';
+        if (!ok && eq && p.rem && r.pool < p.k && r.pool !== p.rem) mis = 'kalanYok';
+      }
       else if (p.kind === 'build') { const r = await askBuild(p); val = r.v; ok = r.v === p.target && r.o < 10; if (!ok && p.bugBuild) mis = p.bugBuild(r.t, r.o); if (r.v === p.target && r.o >= 10) mis = 'yanYana'; }
       else { val = await askNum(p.q); ok = val === p.ans; }
       if (ok) { if (!opt.quiet) { sndOk(); await say(gen(TALK.right) + (p.why && !opt.fast ? ' ' + gen(TALK.rightWhy, { why: p.why }) : '')); } return { ok: true, first: tries === 0, mis }; }

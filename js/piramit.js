@@ -48,7 +48,7 @@
   if ('speechSynthesis' in window) { pickV(); speechSynthesis.addEventListener && speechSynthesis.addEventListener('voiceschanged', pickV); }
   let talkRun = 0;
   function speakText(t) {
-    return t.replace(/<[^>]+>/g, ' ').replace(/−/g, ' eksi ').replace(/\+/g, ' artı ').replace(/=/g, ' eşittir ').replace(/×/g, ' çarpı ')
+    return t.replace(/<span class="frac"><span>([^<]*)<\/span><span>([^<]*)<\/span><\/span>/g, ' $1 bölü $2 ').replace(/(\d+)\/(\d+)/g, '$1 bölü $2').replace(/%(\d+)/g, 'yüzde $1').replace(/<[^>]+>/g, ' ').replace(/−/g, ' eksi ').replace(/\+/g, ' artı ').replace(/=/g, ' eşittir ').replace(/×/g, ' çarpı ')
       .replace(/\?/g, '?').replace(/[▢□]/g, ' kaç ').replace(/\p{Extended_Pictographic}|️/gu, ' ').replace(/\s+/g, ' ').trim();
   }
   async function say(t, ms) {
@@ -164,8 +164,31 @@
     },
     mark(x, y, s, color) { const g = el('g', {}); el('circle', { cx: x, cy: y, r: 7, fill: color || C.red }, g); if (s !== undefined) { const t = el('text', { x, y: y - 16, 'text-anchor': 'middle', 'font-size': 18, fill: color || C.red, 'font-weight': 700, class: 'kt' }, g); t.textContent = s; } return pop(g); },
     brace(x1, x2, y, s, color) { const p = el('path', { d: `M${x1},${y} q0,10 10,10 L${(x1 + x2) / 2 - 8},${y + 10} q8,0 8,8 q0,-8 8,-8 L${x2 - 10},${y + 10} q10,0 10,-10`, fill: 'none', stroke: color || C.green, 'stroke-width': 2.5 }); stroke(p, 500); if (s) D.text((x1 + x2) / 2, y + 40, s, { size: 17, color: color || C.green, delay: 250 }); return p; },
-    circle(x, y, r, color) { return stroke(el('ellipse', { cx: x, cy: y, rx: r, ry: r * .8, fill: 'none', stroke: color || C.green, 'stroke-width': 3 }), 600); }
+    circle(x, y, r, color) { return stroke(el('ellipse', { cx: x, cy: y, rx: r, ry: r * .8, fill: 'none', stroke: color || C.green, 'stroke-width': 3 }), 600); },
+    // Kesir şeridi: n eşit parça, ilk k tanesi boyalı
+    bar(n, k, x, y, w, h, o = {}) {
+      const pw = w / n, parts = [];
+      for (let i = 0; i < n; i++) { const r = el('rect', { x: x + i * pw, y, width: pw, height: h, fill: i < k ? (o.color || C.one) : '#fff', stroke: C.ink, 'stroke-width': 2.5 }); parts.push(pop(r, i * 60)); }
+      if (o.label) D.text(x + w + 26, y + h / 2 + 7, o.label, { size: 18, color: o.color || C.ink });
+      return parts;
+    },
+    // Pizza: n dilim, k tanesi boyalı
+    pie(n, k, cx, cy, r, o = {}) {
+      const out = [];
+      for (let i = 0; i < n; i++) {
+        const a0 = -Math.PI / 2 + i * 2 * Math.PI / n, a1 = a0 + 2 * Math.PI / n;
+        const d = n === 1 ? `M${cx - r},${cy} a${r},${r} 0 1,0 ${2 * r},0 a${r},${r} 0 1,0 ${-2 * r},0` : `M${cx},${cy} L${cx + r * Math.cos(a0)},${cy + r * Math.sin(a0)} A${r},${r} 0 ${a1 - a0 > Math.PI ? 1 : 0},1 ${cx + r * Math.cos(a1)},${cy + r * Math.sin(a1)} Z`;
+        out.push(pop(el('path', { d, fill: i < k ? (o.color || '#f4a63a') : '#fff6e5', stroke: '#8a5a1a', 'stroke-width': 2.5 }), i * 70));
+      }
+      return out;
+    },
+    // 100'lük kare: k kutu boyalı
+    grid100(k, x, y, s, o = {}) {
+      for (let i = 0; i < 100; i++) el('rect', { x: x + (i % 10) * s, y: y + Math.floor(i / 10) * s, width: s, height: s, fill: i < k ? (o.color || C.ten) : '#fff', stroke: '#9aa6bd', 'stroke-width': .8 });
+      stroke(el('rect', { x, y, width: 10 * s, height: 10 * s, fill: 'none', stroke: C.ink, 'stroke-width': 2.5 }), 500);
+    }
   };
+  const FR = (a, b) => F(a, b); // HTML kesir gösterimi (app.js)
 
   // ---------------------------------------------------------------- hata dedektifi
   // Her kavram yanılgısı: ne fark ettik + hangi taş onarır
@@ -186,7 +209,12 @@
     parcaYanYana: { what: 'Parçaları topladın ama yan yana yazdın. Onlukların toplamı ile birliklerin toplamı da birleşmeli.', fix: 'onluk' },
     carpmaToplama: { what: 'Sayıları topladın. Çarpma, aynı grubu tekrar tekrar eklemektir.', fix: 'esitGrup' },
     grupKayma: { what: 'Bir grup fazla ya da eksik saydın. Grupları tek tek işaretleyerek say.', fix: 'esitGrup' },
-    kalanYok: { what: 'Bölme her zaman tam çıkmaz. Kimseye eşit verilemeyen balıklar artar.', fix: 'paylas' }
+    kalanYok: { what: 'Bölme her zaman tam çıkmaz. Kimseye eşit verilemeyen balıklar artar.', fix: 'paylas' },
+    boyaliBos: { what: 'Boyalı parçayı boş parçalarla karşılaştırdın. Paydada bütünün TÜM parçaları yazılır.', fix: 'kesirParca' },
+    paydaBuyuk: { what: 'Payda büyüdükçe parçalar küçülür! 1/8, 1/4\'ten küçüktür: pizza 8 kişiye bölününce dilim küçülür.', fix: 'kesirParca' },
+    denkToplama: { what: 'Pay ve paydaya aynı sayıyı ekledin. Denk kesirde ikisi aynı sayıyla ÇARPILIR.', fix: 'denk' },
+    ondalikBasamak: { what: 'Ondalıkları tam sayı gibi topladın. Onda birler 10\'u geçince 1 bütün olur.', fix: 'ondalik' },
+    yuzdeSadece: { what: 'Yüzdenin kendisini yazdın. %25, 100 parçadan 25 parça demek; önce bütünü parçalara böl.', fix: 'yuzde' }
   };
 
   // ---------------------------------------------------------------- TAŞLAR
@@ -539,9 +567,101 @@
     sprint: () => { const k = R(2, 6), q = R(2, 9); return { kind: 'num', q: `${k * q} ÷ ${k}`, ans: q }; }
   });
 
+  // ===== KAT 4 · PARÇA VE BÜTÜN
+  const gcd = (a, b) => (b ? gcd(b, a % b) : a);
+  add({ id: 'kesirParca', layer: 4, icon: '🍕', name: 'Eşit parça', tag: 'Kesir = bütünün eşit parçaları', needs: ['paylas', 'dogru'],
+    predict: () => ({ q: 'Hangisi daha büyük dilim: pizzanın 1/4\'ü mü, 1/8\'i mi?', choices: ['1/4', '1/8'], ans: 0,
+      show: async () => { D.clear(); D.pie(4, 1, 100, 105, 70); D.pie(8, 1, 260, 105, 70); D.text(100, 200, '1/4', { size: 20 }); D.text(260, 200, '1/8', { size: 20 }); await say('Aynı pizza! Dörde bölünce dilimler büyük, sekize bölünce küçük. Payda büyüdükçe parça küçülür.'); } }),
+    model: async ask => {
+      D.clear(); D.bar(5, 3, 40, 60, 280, 50); D.text(180, 40, 'Bütün 5 eşit parça', { size: 17 });
+      await say('Bu şerit bir bütün. Beş eşit parçaya böldüm, üç tanesini boyadım.');
+      const r1 = await ask({ q: 'Bütün kaç eşit parça? (payda)', ans: 5, why: 'paydada bütünün parça sayısı yazar.' });
+      const r2 = await ask({ q: 'Kaç parça boyalı? (pay)', ans: 3, why: 'payda alınan parça sayısı yazar.' });
+      D.text(180, 160, '3/5', { size: 34, color: C.red }); await say('Üç bölü beş: beş eşit parçadan üçü.');
+      return r1 && r2;
+    },
+    gen: d => {
+      if (d === 2) { const n = R(3, 8), k = R(1, n - 1); return { kind: 'shade', n, ans: k, q: `Şeridin ${FR(k, n)} kadarını boya`, why: `${n} parçadan ${k} tanesi.`, hint: `Şerit ${n} parça; ${k} tanesini boya.` }; }
+      if (d === 3) { let a = R(2, 9), b; do { b = R(2, 9); } while (b === a); return { kind: 'choice', q: 'Hangisi daha büyük?', choices: [FR(1, a), FR(1, b)], ans: a < b ? 0 : 1, why: 'payda küçük olunca parça büyük olur.', bug: i => (i !== (a < b ? 0 : 1) ? 'paydaBuyuk' : null), hint: 'Hangisinde pizza daha az kişiye bölünmüş?',
+        vis: () => { D.clear(); D.pie(a, 1, 100, 105, 65); D.pie(b, 1, 260, 105, 65); } }; }
+      const n = R(2, 6), k = R(1, n - 1), wrongs = [FR(k, n - k), FR(n, k)]; const ch = shuffle([FR(k, n), ...new Set(wrongs.filter(w => w !== FR(k, n)))]);
+      return { kind: 'choice', q: 'Boyalı kısım hangi kesir?', choices: ch, ans: ch.indexOf(FR(k, n)), why: `${n} eşit parçadan ${k} tanesi boyalı.`, bug: i => (ch[i] === FR(k, n - k) ? 'boyaliBos' : null), hint: 'Önce bütünün kaç parça olduğunu say: o payda.',
+        vis: () => { D.clear(); if (chance(.5)) D.pie(n, k, 180, 105, 75); else D.bar(n, k, 40, 75, 280, 50); } };
+    },
+    sprint: () => { const n = R(2, 8), k = R(1, n - 1); return { kind: 'num', q: `${FR(k, n)}: payda kaç?`, ans: n }; }
+  });
+
+  add({ id: 'kesirDogru', layer: 4, icon: '📏', name: 'Doğruda kesir', tag: 'Kesirler de sayıdır: 0 ile 1 arasında', needs: ['kesirParca'],
+    predict: () => ({ q: '1/2 sayı doğrusunda nerededir?', choices: ['0\'a yakın', '0 ile 1\'in tam ortası', '1\'den sonra'], ans: 1,
+      show: async () => { D.clear(); const x1 = 40, x2 = 320; D.line(x1, 120, x2, 120, { w: 3 }); [0, 1, 2].forEach(i => D.line(x1 + 140 * i, 110, x1 + 140 * i, 130, { w: 2.5 })); D.text(x1, 152, '0', { size: 18 }); D.text(x2, 152, '1', { size: 18 }); D.mark(180, 120, '1/2', C.red); await say('Sıfır ile bir arasını iki eşit parçaya böldüm. Yarım, tam ortada! Kesirler de sayı doğrusunda yaşayan sayılardır.'); } }),
+    model: async ask => {
+      D.clear(); const x1 = 40, x2 = 320; D.line(x1, 120, x2, 120, { w: 3 }); for (let i = 0; i <= 4; i++) D.line(x1 + 70 * i, 110, x1 + 70 * i, 130, { w: 2.5 }); D.text(x1, 152, '0', { size: 18 }); D.text(x2, 152, '1', { size: 18 });
+      await say('Bu kez sıfır ile biri dört eşit parçaya böldüm. Her adım bir bölü dört.');
+      D.jump(x1, x1 + 70, 120, '1/4'); D.jump(x1 + 70, x1 + 140, 120, '1/4'); D.jump(x1 + 140, x1 + 210, 120, '1/4');
+      return ask({ q: 'Üç adım attık. Kaç bölü dört? (pay)', ans: 3, why: 'üç tane çeyrek: 3/4.' });
+    },
+    gen: d => {
+      const n = d === 1 ? R(2, 4) : d === 2 ? R(5, 8) : R(6, 10), k = R(1, n - 1);
+      return { kind: 'fline', n, ans: k, q: `${FR(k, n)} nerede? Doğruya dokun.`, why: `0 ile 1 arası ${n} parça; ${k}. çentik.`, hint: `0'dan başlayıp ${k} çentik say.` };
+    },
+    sprint: () => { const n = R(2, 8), k = R(1, n - 1); return { kind: 'fline', n, ans: k, q: `${FR(k, n)}?` }; }
+  });
+
+  add({ id: 'denk', layer: 4, icon: '🪞', name: 'Denk kesirler', tag: '1/2 = 2/4 = 4/8', needs: ['kesirParca', 'izgara'],
+    predict: () => ({ q: '1/2 ile 2/4 aynı miktar mı?', choices: ['Aynı', 'Farklı'], ans: 0,
+      show: async () => { D.clear(); D.bar(2, 1, 40, 40, 280, 40, { label: '1/2' }); D.bar(4, 2, 40, 100, 280, 40, { label: '2/4' }); D.bar(8, 4, 40, 160, 280, 40, { label: '4/8' }); await say('Üç şerit de aynı uzunlukta boyandı! Parçaları ikiye böldükçe hem parça sayısı hem boyalı parça iki katına çıkıyor. Miktar değişmiyor.'); } }),
+    model: async ask => {
+      D.clear(); D.bar(3, 2, 40, 50, 280, 45, { label: '2/3' }); await say('İki bölü üç. Şimdi her parçayı ikiye bölelim.');
+      D.bar(6, 4, 40, 120, 280, 45, { label: '?/6' });
+      return ask({ q: '2/3 = ▢/6 (pay kaç?)', ans: 4, why: 'pay da payda da 2 ile çarpıldı: 4/6.' });
+    },
+    gen: d => {
+      if (d === 3) { const b = R(2, 6), a = R(1, b - 1), g = gcd(a, b), m = R(2, 4); const A = a * m, B = b * m, s = gcd(A, B); return { kind: 'num', q: `${FR(A, B)} = ${FR(A / s, '▢')} (payda kaç?)`, ans: B / s, why: `pay ve payda ${s} ile bölündü.`, hint: `${A} ve ${B} hangi sayıyla bölünür?` }; }
+      const b = R(2, 5), a = R(1, b - 1), m = d === 1 ? 2 : R(2, 5), B = b * m;
+      return { kind: 'num', q: `${FR(a, b)} = ${FR('▢', B)} (pay kaç?)`, ans: a * m, why: `payda ${m} ile çarpıldı, pay da ${m} ile: ${a * m}.`, bug: x => (x === a + (B - b) ? 'denkToplama' : null), hint: `${b} kaçla çarpılınca ${B} olur?`,
+        vis: d === 1 ? () => { D.clear(); D.bar(b, a, 40, 50, 280, 45); D.bar(B, 0, 40, 120, 280, 45); } : null,
+        vis2: () => { D.clear(); D.bar(b, a, 40, 50, 280, 45, { label: `${a}/${b}` }); D.bar(B, a * m, 40, 120, 280, 45, { label: `${a * m}/${B}` }); } };
+    },
+    sprint: () => { const b = R(2, 5), a = R(1, b - 1), m = R(2, 4); return { kind: 'num', q: `${FR(a, b)} = ${FR('▢', b * m)}`, ans: a * m }; }
+  });
+
+  add({ id: 'ondalik', layer: 4, icon: '🔟', name: 'Ondalık', tag: '0,3 = 3/10', needs: ['kesirDogru', 'basamak'],
+    predict: () => ({ q: '0,5 ile 1/2 aynı mı?', choices: ['Aynı', 'Farklı'], ans: 0,
+      show: async () => { D.clear(); D.bar(10, 5, 40, 60, 280, 45, { label: '0,5' }); D.bar(2, 1, 40, 130, 280, 45, { label: '1/2' }); await say('Onda beş, şeridin yarısı. Ondalık sayılar da kesirdir: virgülden sonraki ilk basamak onda birleri sayar.'); } }),
+    model: async ask => {
+      D.clear(); D.bar(10, 7, 40, 50, 280, 45); D.text(180, 30, 'Bütün = 10 parça', { size: 17 });
+      await say('Bütünü on eşit parçaya böldük. Her parça onda bir, yani sıfır virgül bir.');
+      const r = await ask({ q: 'Boyalı kısım: 0,▢ (kaç onda bir?)', ans: 7, why: 'yedi parça boyalı: 0,7.' });
+      D.bar(10, 6, 40, 120, 280, 45, { color: C.ten }); await say('Şimdi buna altı onda bir daha ekleyelim.');
+      const r2 = await ask({ q: '0,7 + 0,6 = ? (virgül tuşunu kullan)', ans: 1.3, ansTxt: '1,3', dec: true, why: 'on üç onda bir: 1 bütün ve 3 onda bir.' });
+      return r && r2;
+    },
+    gen: d => {
+      if (d === 1) { const k = R(1, 9); return { kind: 'num', dec: true, q: `${FR(k, 10)} ondalık olarak kaç?`, ans: k / 10, ansTxt: dec(k / 10), why: `onda ${k}: ${dec(k / 10)}.`, bug: x => (x === k ? 'ondalikBasamak' : null), hint: 'Virgülden sonraki ilk basamak onda birler.', vis: () => { D.clear(); D.bar(10, k, 40, 70, 280, 45); } }; }
+      if (d === 2) { const a = R(2, 9), b = R(11 - a, 9), ans = (a + b) / 10; return { kind: 'num', dec: true, q: `${dec(a / 10)} + ${dec(b / 10)} = ?`, ans, ansTxt: dec(ans), why: `${a} + ${b} = ${a + b} onda bir = ${dec(ans)}.`, bug: x => (Math.abs(x - (a + b) / 100) < 1e-9 ? 'ondalikBasamak' : null), hint: 'Onda birleri say: 10 onda bir = 1 bütün.', vis2: () => { D.clear(); D.bar(10, a, 40, 50, 280, 40); D.bar(10, b, 40, 110, 280, 40, { color: C.ten }); } }; }
+      const a = R(12, 39), b = R(5, 19), ans = (a - b) / 10; return { kind: 'num', dec: true, q: `${dec(a / 10)} − ${dec(b / 10)} = ?`, ans, ansTxt: dec(ans), why: `${a} onda bir − ${b} onda bir = ${a - b} onda bir.`, hint: 'İkisini de onda bir olarak düşün.' };
+    },
+    sprint: () => { const k = R(1, 9); return { kind: 'num', dec: true, q: `${FR(k, 10)} = ?`, ans: k / 10 }; }
+  });
+
+  add({ id: 'yuzde', layer: 4, icon: '💯', name: 'Yüzde', tag: '%25 = 100\'de 25 = 1/4', needs: ['ondalik', 'denk'],
+    predict: () => ({ q: '%50 indirim, fiyatın yarısı kadar indirim mi?', choices: ['Evet', 'Hayır'], ans: 0,
+      show: async () => { D.clear(); D.grid100(50, 105, 20, 15); await say('Yüz kutunun elli tanesi boyalı: yüzde elli, yani yarısı. Yüzde, yüz parçadan kaçı demek.'); } }),
+    model: async ask => {
+      D.clear(); D.grid100(25, 105, 20, 15); await say('Yüz kutunun yirmi beşi boyalı. Yüzde yirmi beş. Bak, kare dört eşit parçanın biri kadar: bir bölü dört!');
+      const r1 = await ask({ q: '40 elmanın %25\'i kaç? (40\'ı 4 eşit parçaya böl)', ans: 10, why: 'kırkın dörtte biri on.' });
+      return r1;
+    },
+    gen: d => {
+      if (d === 1) { const k = pick([10, 20, 25, 30, 40, 50, 60, 75, 80]); return { kind: 'num', q: 'Karenin yüzde kaçı boyalı?', ans: k, why: `100 kutudan ${k} tanesi: %${k}.`, vis: () => { D.clear(); D.grid100(k, 105, 20, 15); }, hint: 'Her sıra 10 kutu: boyalı sıraları say.' }; }
+      if (d === 2) { const [p, part] = pick([[50, 2], [25, 4], [10, 10], [20, 5]]), N = part * R(2, 12); return { kind: 'num', q: `${N} sayısının %${p}'${({ 50: 'si', 25: 'i', 10: 'u', 20: 'si' })[p]} kaç?`, ans: N / part, why: `%${p} = 1/${part}; ${N} ÷ ${part} = ${N / part}.`, bug: x => (x === p ? 'yuzdeSadece' : null), hint: `%${p}, bütünün 1/${part}'${({ 2: 'si', 4: 'ü', 10: 'u', 5: 'i' })[part]}.` }; }
+      const p = pick([20, 30, 40, 60, 70, 75]), N = (p === 75 ? 4 : 10) * R(2, 9), ans = N * p / 100; return { kind: 'num', q: `${N} kişinin %${p}'${({ 20: 'si', 30: 'u', 40: 'ı', 60: 'ı', 70: 'i', 75: 'i' })[p]} kaç kişi?`, ans, why: p === 75 ? `%75 = 3/4; ${N} ÷ 4 × 3 = ${ans}.` : `%10'u ${N / 10}, %${p}'${({ 20: 'si', 30: 'u', 40: 'ı', 60: 'ı', 70: 'i' })[p]} ${p / 10} katı: ${ans}.`, bug: x => (x === p ? 'yuzdeSadece' : null), hint: p === 75 ? '%75, dörtte üç demek.' : `Önce %10'unu bul: ${N} ÷ 10.` };
+    },
+    sprint: () => { const N = 10 * R(2, 9); return { kind: 'num', q: `${sx(N, 'gen')} %10'u`, ans: N / 10 }; }
+  });
+
   // ===== ÜST KATLAR (yapım aşamasında) — piramidin tamamını göstermek için
   const FUTURE = [
-    [4, ['🍕 Eşit parça', '📏 Doğruda kesir', '🪞 Denk kesirler', '🔟 Ondalık', '💯 Yüzde']],
     [5, ['⚖️ Terazi', '📦 Bilinmeyen kutu', '🔁 Örüntü', '🧮 Denklem']],
     [6, ['📊 Şerit modeli', '🧠 Çok adımlı problem']]
   ];
@@ -615,7 +735,7 @@
       <span>⬜ kilitli</span><span>🟧 sıradaki</span><span style="color:#2bb3a3">■ kuruldu</span><span style="color:#d89200">■ altın</span><span>🔁 tekrar zamanı</span><span>⚡ çatlak</span></div></div>`;
     h += `<button class="btn green" id="pyGo">${due.length ? `🔁 Bugünün tırmanışı (${due.length} tekrar${fr ? ' + yeni taş' : ''})` : fr ? `🧱 Sıradaki taş: ${fr.icon} ${fr.name}` : '🏆 Hepsi kuruldu!'}</button>`;
     h += `<div class="pyr-wrap">`;
-    [1, 2, 3].forEach(L => {
+    [1, 2, 3, 4].forEach(L => {
       h += `<div class="pyr-row">${SK.filter(s => s.layer === L).map(s => { const x = st(s.id); const cls = x.lvl >= 3 ? 'b' + x.lvl : isOpen(s) ? (x.lvl ? 'b' + x.lvl : 'open') : ''; return `<button class="brick ${cls} ${x.crack ? 'crack' : ''} ${isDue(s) ? 'due' : ''}" data-sk="${s.id}"><span class="ic">${isOpen(s) || x.lvl ? s.icon : '🔒'}</span>${s.name}</button>`; }).join('')}</div><div class="pyr-lab">${L}. kat · ${LAYER[L]}</div>`;
     });
     FUTURE.forEach(([L, list]) => { h += `<div class="pyr-row">${list.map(n => `<span class="brick future"><span class="ic">${n.split(' ')[0]}</span>${n.split(' ').slice(1).join(' ')}</span>`).join('')}</div><div class="pyr-lab">${L}. kat · ${LAYER[L]} <span style="font-weight:600">(yapım aşamasında 🏗️)</span></div>`; });
@@ -653,14 +773,17 @@
   let note = ''; // dedektif notu: yeni deneme ekranında da görünsün
 
   // Cevap alma: sayı tuşları / seçenek / sayı doğrusu / blok kurma. Promise<{ok, val}>
-  function askNum(q) {
+  function askNum(q, dec) {
     return new Promise(res => {
       let v = '';
+      const keys = dec ? ['1', '2', '3', '4', '5', '⌫', '6', '7', '8', '9', '0', DECSEP] : ['1', '2', '3', '4', '5', '⌫', '6', '7', '8', '9', '0'];
+      const num = () => Number(v.replace(',', '.'));
+      const push = k => { if ((k === ',' || k === '.') && (!dec || /[.,]/.test(v))) return; if (v.length < 6) v += (k === '.' || k === ',') ? DECSEP : k; };
       area().innerHTML = note + `<div class="pd-q">${q}</div><div class="pd-in"><span class="box" id="pdV">?</span></div>
-        <div class="pd-pad">${['1', '2', '3', '4', '5', '⌫', '6', '7', '8', '9', '0'].map(k => `<button data-k="${k}">${k}</button>`).join('')}<button class="go" data-k="OK">Tamam ✔</button></div>`;
+        <div class="pd-pad">${keys.map(k => `<button data-k="${k}">${k}</button>`).join('')}<button class="go" data-k="OK" ${dec ? 'style="grid-column:span 6"' : ''}>Tamam ✔</button></div>`;
       const box = $('pdV'), show = () => { box.textContent = v || '?'; };
-      area().querySelectorAll('[data-k]').forEach(b => b.onclick = () => { sndTap(); const k = b.dataset.k; if (k === 'OK') { if (v !== '') { cleanup(); res(Number(v)); } return; } if (k === '⌫') v = v.slice(0, -1); else if (v.length < 4) v += k; show(); });
-      const kd = e => { if (!$('pdV')) return cleanup(); if (/^[0-9]$/.test(e.key) && v.length < 4) { v += e.key; show(); } else if (e.key === 'Backspace') { v = v.slice(0, -1); show(); } else if (e.key === 'Enter' && v !== '') { cleanup(); res(Number(v)); } };
+      area().querySelectorAll('[data-k]').forEach(b => b.onclick = () => { sndTap(); const k = b.dataset.k; if (k === 'OK') { if (v !== '' && v !== DECSEP) { cleanup(); res(num()); } return; } if (k === '⌫') v = v.slice(0, -1); else push(k); show(); });
+      const kd = e => { if (!$('pdV')) return cleanup(); if (/^[0-9.,]$/.test(e.key)) { push(e.key); show(); } else if (e.key === 'Backspace') { v = v.slice(0, -1); show(); } else if (e.key === 'Enter' && v !== '') { cleanup(); res(num()); } };
       const cleanup = () => document.removeEventListener('keydown', kd);
       document.addEventListener('keydown', kd);
     });
@@ -747,6 +870,39 @@
       $('pdShOk').onclick = () => res({ got: [...got], pool });
     });
   }
+  // Şerit boyama: n parçalı şeritte parçalara dokunarak boya (kesir = parça / bütün)
+  function askShade(p) {
+    return new Promise(res => {
+      const on = Array(p.n).fill(false), x = 30, y = 70, w = 300, h = 56, pw = w / p.n;
+      D.clear(); if (p.title) D.text(180, 30, p.title, { size: 18 });
+      const parts = [];
+      for (let i = 0; i < p.n; i++) {
+        const r = el('rect', { x: x + i * pw, y, width: pw, height: h, fill: '#fff', stroke: C.ink, 'stroke-width': 2.5, style: 'cursor:pointer' });
+        r.onclick = () => { sndTap(); on[i] = !on[i]; r.setAttribute('fill', on[i] ? C.one : '#fff'); };
+        parts.push(r);
+      }
+      area().innerHTML = note + `<div class="pd-q">${p.q}</div><p class="muted" style="text-align:center;margin:0">Parçalara dokunarak boya (tekrar dokunursan silinir).</p><button class="btn green" id="pdShdOk" style="margin-top:8px">Boyadım ✔</button>`;
+      $('pdShdOk').onclick = () => res(on.filter(Boolean).length);
+    });
+  }
+  // Kesir doğrusu: 0–1 arası n eşit parça; dokunulan çentiğin sırası (k) döner
+  function askFLine(p) {
+    return new Promise(res => {
+      D.clear(); const x1 = 40, x2 = 320, y = 120;
+      D.line(x1 - 6, y, x2 + 6, y, { w: 3, ms: 600 });
+      for (let i = 0; i <= p.n; i++) { const x = x1 + (x2 - x1) * i / p.n, end = i === 0 || i === p.n; D.line(x, y - (end ? 10 : 7), x, y + (end ? 10 : 7), { w: end ? 3 : 2, ms: 200 }); }
+      D.text(x1, y + 32, '0', { size: 18 }); D.text(x2, y + 32, '1', { size: 18 });
+      area().innerHTML = note + `<div class="pd-q">${p.q}</div><p class="muted" style="text-align:center;margin:0">Tahtadaki doğrunun üstüne dokun.</p>`;
+      const hit = el('rect', { x: 20, y: 70, width: 320, height: 100, fill: 'transparent', style: 'cursor:pointer' });
+      hit.onclick = e => {
+        const r = BD.getBoundingClientRect(), xx = (e.clientX - r.left) / r.width * 360;
+        const k = Math.max(0, Math.min(p.n, Math.round((xx - x1) / (x2 - x1) * p.n)));
+        hit.remove(); D.mark(x1 + (x2 - x1) * k / p.n, y, `${k}/${p.n}`, C.ten);
+        if (k !== p.ans) D.mark(x1 + (x2 - x1) * p.ans / p.n, y, '', C.green);
+        res(k);
+      };
+    });
+  }
   async function flashShow(n, ms) { D.clear(); D.dots(n, 180, 105, { rows: n > 5 }); await sleep(ms); D.clear(); D.text(180, 110, '?', { size: 60, color: C.gray }); }
 
   // Bir problemi sor + hata dedektifi + ipucu merdiveni. Döner: {ok, first, mis}
@@ -770,11 +926,13 @@
         if (!ok && eq && p.rem && r.pool < p.k && r.pool !== p.rem) mis = 'kalanYok';
       }
       else if (p.kind === 'build') { const r = await askBuild(p); val = r.v; ok = r.v === p.target && r.o < 10; if (!ok && p.bugBuild) mis = p.bugBuild(r.t, r.o); if (r.v === p.target && r.o >= 10) mis = 'yanYana'; }
-      else { val = await askNum(p.q); ok = val === p.ans; }
+      else if (p.kind === 'shade') { val = await askShade(p); ok = val === p.ans; }
+      else if (p.kind === 'fline') { val = await askFLine(p); ok = val === p.ans; }
+      else { val = await askNum(p.q, p.dec); ok = Math.abs(val - p.ans) < 1e-9; }
       if (ok) { if (!opt.quiet) { sndOk(); await say(gen(TALK.right) + (p.why && !opt.fast ? ' ' + gen(TALK.rightWhy, { why: p.why }) : '')); } return { ok: true, first: tries === 0, mis }; }
       sndBad(); tries++;
       if (!mis && p.bug) mis = p.bug(val);
-      if (opt.fast) { await say(`Doğrusu ${p.kind === 'choice' ? p.choices[p.ans] : p.ans}.`, 700); return { ok: false, first: false, mis }; }
+      if (opt.fast) { await say(`Doğrusu ${p.kind === 'choice' ? p.choices[p.ans] : (p.ansTxt || p.ans)}.`, 700); return { ok: false, first: false, mis }; }
       if (tries === 1) {
         if (mis && MIS[mis]) { note = `<div class="pd-fb det">🔍 <b>Dedektif:</b> ${MIS[mis].what}</div>`; area().insertAdjacentHTML('afterbegin', note); await say('🔍 ' + MIS[mis].what); }
         else await say(gen(TALK.wrong) + ' ' + gen(TALK.hint1, { q: p.hint || 'Tahtaya bir daha bak.' }));
@@ -783,7 +941,7 @@
       }
       // ikinci yanlış: tahtada çözümü göster, anlat
       if (p.vis2) p.vis2();
-      const ansTxt = p.kind === 'choice' ? p.choices[p.ans] : p.ans;
+      const ansTxt = p.kind === 'choice' ? p.choices[p.ans] : (p.ansTxt || p.ans);
       await say(`Birlikte bakalım: ${p.why ? p.why : ''} Cevap ${ansTxt}.`);
       note = ''; return { ok: false, first: false, mis };
     }

@@ -97,6 +97,9 @@
       .replace(/[→←⇒]/g, ', ').replace(/[▢□]/g, T(' boş kutu ')).replace(/…|\.\.\./g, ', ')
       .replace(/\|/g, ' ').replace(EMOJI, ' ').replace(/[✔✖❌]/g, ' ')
       .replace(/\s+/g, ' ').trim();
+    // Cümle sonundaki sayıdan sonra gelen nokta ses motorunca sıra sayısı okunur ("12." → "on ikinci").
+    // Cümle sonuysa noktayı kısa duraksamaya çevir; "1. kuvvet", "7. sınıf" gibi sıra sayıları (ardından küçük harf) aynen kalır.
+    t = t.replace(/(\d)\s*\.+(?=\s+[A-ZÇĞİÖŞÜ0-9"“'(]|\s*$)/g, '$1,').replace(/\.{2}(?!\.)/g, '.').replace(/[,\s]+$/, '');
     return t;
   }
 

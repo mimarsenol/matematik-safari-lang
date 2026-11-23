@@ -7,7 +7,8 @@
       doğru gelince bir basamak zorlaşır, hata gelince bir basamak kolaylaşır; ilk soru birlikte çözülür. */
 (function () {
   const SITE = 'https://mathsafarix.com/';
-  S.learned = S.learned || {};
+  // S hesap yüklenince/sıfırlanınca yeniden oluşturulur; 'learned' her erişimde garanti edilsin
+  const LR = () => (S.learned && typeof S.learned === 'object') ? S.learned : (S.learned = {});
 
   // ---------------------------------------------------------------- stiller
   const css = document.createElement('style');
@@ -96,7 +97,7 @@
 
   // ---------------------------------------------------------------- 4) kolaydan zora
   const thr = [0, .6, .8, .95];
-  const learned = t => S.learned[t.id] || (S.stars[t.id] || 0) >= 1;
+  const learned = t => LR()[t.id] || (S.stars[t.id] || 0) >= 1;
   let guided = null, justLearned = null;
 
   const _lesson = lesson;
@@ -104,7 +105,7 @@
     // İlk kartta anlatım kendiliğinden başlasın (dokunuşla gelindiği için ses izni vardır)
     _lesson(i, k, opt || (k === 0 ? { auto: true } : undefined));
     const L = TOPICS[i].lesson;
-    if (k === L.length - 1) { S.learned[TOPICS[i].id] = 1; justLearned = i; save(); }
+    if (k === L.length - 1) { LR()[TOPICS[i].id] = 1; justLearned = i; save(); }
     fit();
   };
 

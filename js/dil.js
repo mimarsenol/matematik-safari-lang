@@ -20,7 +20,7 @@
   const _home = home;
   home = function () {
     _home();
-    if ($('lgRow')) return;
+    if ($('lgRow') || ON.length < 2) return; // tek dil açıksa seçici gösterme
     view.insertAdjacentHTML('beforeend', `<div id="lgRow" style="text-align:center;margin:14px 0 6px">
       ${suggest ? `<div class="card" lang="${suggest.c}" style="display:flex;gap:10px;align-items:center;justify-content:center;flex-wrap:wrap">🌐 <b>${suggest.n}</b>
         <button class="btn" id="lgS" style="width:auto;margin:0;padding:8px 16px;font-size:16px">${suggest.n} ✓</button>
@@ -32,7 +32,7 @@
   const _settings = settings;
   settings = function () {
     _settings();
-    const sh = $('sheet'), h2 = sh && sh.querySelector('h2'); if (!h2) return;
+    const sh = $('sheet'), h2 = sh && sh.querySelector('h2'); if (!h2 || ON.length < 2) return;
     h2.insertAdjacentHTML('afterend', `<button class="btn ghost" id="sLang" style="margin:4px 0 10px">🌐 ${T('Dil')}: ${cur.n} ▾</button>`);
     $('sLang').onclick = picker;
   };

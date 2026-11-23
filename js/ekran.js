@@ -172,6 +172,10 @@
   const _home = home;
   home = function () {
     _home(); active = 'home'; paintNav();
+    // Haritayı çocuğun kaldığı konuda ortala (sıradaki konu; yoksa en son yıldızlı konu)
+    const ns = view.querySelectorAll('.node');
+    const target = view.querySelector('.node.next') || [...ns].reverse().find(n => n.classList.contains('done'));
+    if (target) requestAnimationFrame(() => target.scrollIntoView({ block: 'center', behavior: 'auto' }));
     const mb = view.querySelector('.mapbtns');
     if (mb && !$('mSh')) { mb.insertAdjacentHTML('beforeend', T`<button class="btn share" id="mSh" style="grid-column:1/-1">📤 Arkadaşlarına öner</button>`); $('mSh').onclick = shareApp; }
   };

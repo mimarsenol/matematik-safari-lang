@@ -50,6 +50,7 @@
   function voice(k, text) {
     if (!S.sound) return;
     beep(SMALL.includes(k) ? [[1900, .05], [2400, .07]] : BIG.includes(k) ? [[140, .18, 'sawtooth'], [110, .22, 'sawtooth']] : [[620, .06, 'triangle'], [820, .08, 'triangle']]);
+    if (window.TTS && TTS.ready) { if (!TTS.playing()) TTS.play(text.replace(/…/g, ''), { pitch: SMALL.includes(k) ? 45 : BIG.includes(k) ? -30 : 15, rate: 5 }).catch(() => {}); return; }
     if (!('speechSynthesis' in window) || speechSynthesis.speaking || !trVoice) return; // sesli anlatımı bölme
     try {
       const u = new SpeechSynthesisUtterance(text.replace(/[…?!]/g, ' ').trim());

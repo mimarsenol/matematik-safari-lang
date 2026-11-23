@@ -209,6 +209,11 @@
     if (myRun === run) await sleep(350);
   }
   function say1(text, myRun) {
+    // Doğal ses (Azure) varsa onu kullan, olmazsa cihaz sesine düş
+    if (S.sound && window.TTS && TTS.ready) return TTS.play(text, { rate: rateKey === 'slow' ? -20 : -6 }).catch(() => (myRun === run ? say1dev(text, myRun) : null));
+    return say1dev(text, myRun);
+  }
+  function say1dev(text, myRun) {
     return new Promise(res => {
       if (!SS || !voice) { setTimeout(res, Math.min(6000, 900 + text.length * 55 / RATE[rateKey])); return; }
       const u = new SpeechSynthesisUtterance(text);
@@ -272,7 +277,7 @@
     if (k < lastK) { await sleep(500); if (myRun === run) lesson(i, k + 1, { auto: true }); }
     else { playing = false; paintBtn(); const ln = $('ln'); if (ln) { ln.classList.add('cta'); ln.scrollIntoView({ behavior: 'smooth', block: 'center' }); } }
   }
-  function pause() { run++; playing = false; if (SS) SS.cancel(); talking(false); hidePen(); paintBtn(); }
+  function pause() { run++; playing = false; if (SS) SS.cancel(); if (window.TTS) TTS.stop(); talking(false); hidePen(); paintBtn(); }
   function stop() { pause(); idx = 0; segs = []; }
 
   // ---------- ders ekranına anlatım çubuğu ----------

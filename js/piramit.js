@@ -56,7 +56,13 @@
     const b = $('pdSay'); if (b) { b.innerHTML = t; b.classList.remove('pop'); void b.offsetWidth; b.classList.add('pop'); }
     const ani = $('pdAni'); if (ani) ani.classList.add('talk');
     const txt = speakText(t);
-    if (S.sound && voice && 'speechSynthesis' in window) {
+    let spoken = false;
+    if (S.sound && window.TTS && TTS.ready && txt) {
+      try { await TTS.play(txt, { rate: -6 }); spoken = true; } catch (e) { /* cihaz sesine düş */ }
+      if (my !== talkRun) return;
+    }
+    if (spoken) { /* doğal ses okudu */ }
+    else if (S.sound && voice && 'speechSynthesis' in window) {
       speechSynthesis.cancel();
       const parts = txt.split(/(?<=[.!?:])\s+/).filter(Boolean);
       for (const p of parts) {
@@ -67,7 +73,7 @@
     } else await sleep(ms || Math.min(4200, 900 + txt.length * 45));
     if (my === talkRun && ani) ani.classList.remove('talk');
   }
-  const hush = () => { talkRun++; try { speechSynthesis.cancel(); } catch (e) {} };
+  const hush = () => { talkRun++; try { speechSynthesis.cancel(); } catch (e) {} if (window.TTS) TTS.stop(); };
 
   // Cümle üretici: parçalardan, çocuğun durumuna göre; son kullanılanları tekrar etmez
   const used = [];

@@ -13,8 +13,7 @@
   const css = document.createElement('style');
   css.textContent = `
   #top #btnHome,#top #btnLb,#top #btnZoo,#top #btnSet{display:none}
-  body{padding-bottom:calc(78px + env(safe-area-inset-bottom))}
-  body.focus{padding-bottom:0}
+  body:not(.focus) #app{padding-bottom:calc(var(--navh,84px) + 16px)!important}
   #nav{position:fixed;left:0;right:0;bottom:0;z-index:15;background:#fff;box-shadow:0 -4px 14px rgba(0,0,0,.08);
     border-radius:22px 22px 0 0;padding:6px 6px calc(6px + env(safe-area-inset-bottom));display:flex;justify-content:center}
   #nav .in{display:flex;gap:4px;width:100%;max-width:760px}
@@ -43,6 +42,9 @@
   ];
   nav.innerHTML = '<div class="in">' + ITEMS.map(([k, e, n]) => `<button data-n="${k}" aria-label="${n}"><b>${e}</b>${n}</button>`).join('') + '</div>';
   document.body.appendChild(nav);
+  // Menünün gerçek yüksekliği kadar alttan boşluk bırak: hiçbir şey menünün altında kalmasın
+  const setH = () => document.documentElement.style.setProperty('--navh', nav.offsetHeight + 'px');
+  setH(); if (window.ResizeObserver) new ResizeObserver(setH).observe(nav); window.addEventListener('resize', setH);
   let active = 'home';
   nav.querySelectorAll('button').forEach(b => b.onclick = () => {
     if (typeof sndTap === 'function') sndTap();

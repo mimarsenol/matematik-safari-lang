@@ -10,7 +10,7 @@
    ========================================================= */
 (function () {
   const SS = window.speechSynthesis;
-  const RATE = { normal: 0.86, slow: 0.7 };
+  const RATE = { normal: 1.08, slow: 0.88 };
   let playing = false, run = 0, idx = 0, segs = [], rateKey = 'normal', voice = null;
   // Beyaz tahta modu: satırlar harf harf yazılır, şekiller çizilerek gelir (tercih cihazda saklanır)
   const BKEY = 'matSafari_tahta';
@@ -200,7 +200,7 @@
     for (let j = 0; j < parts.length; j++) {
       if (myRun !== run) return;
       await say1(parts[j], myRun);
-      if (j < parts.length - 1) await sleep(320 / RATE[rateKey]);
+      if (j < parts.length - 1) await sleep(220 / RATE[rateKey]);
     }
   }
   async function aside(text, myRun) { // ara cümle: tahtaya yazılmaz, hayvan söyler
@@ -210,7 +210,7 @@
   }
   function say1(text, myRun) {
     // Doğal ses (Azure) varsa onu kullan, olmazsa cihaz sesine düş
-    if (S.sound && window.TTS && TTS.ready) return TTS.play(text, { rate: rateKey === 'slow' ? -20 : -6 }).catch(() => (myRun === run ? say1dev(text, myRun) : null));
+    if (S.sound && window.TTS && TTS.ready) return TTS.play(text, { rate: rateKey === 'slow' ? -8 : 6 }).catch(() => (myRun === run ? say1dev(text, myRun) : null));
     return say1dev(text, myRun);
   }
   function say1dev(text, myRun) {
@@ -265,7 +265,7 @@
       await (board ? Promise.all([say(text, myRun), write(s.el, estMs(text), myRun)]) : say(text, myRun));
       talking(false);
       if (myRun !== run) return;
-      await sleep(600 / RATE[rateKey]);
+      await sleep(380 / RATE[rateKey]);
     }
     if (myRun !== run) return;
     hidePen();

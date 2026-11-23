@@ -212,6 +212,20 @@
   const side = (a, b) => [...Array(a).fill({ x: true }), ...splitW(b)];
   const splitW = n => { const out = []; let r = n; for (const w of [10, 5, 1]) while (r >= w && out.length < 8) { out.push({ v: w }); r -= w; } if (r > 0) out.push({ v: r }); return out; };
 
+  // Şerit modeli: rows = [{ad, parts:[{v, c, t}], brace}] — her şerit parçası değeriyle orantılı
+  D.strips = function (rows, max, o = {}) {
+    const x0 = 92, W = 236, h = 30, gap = 18, y0 = o.y || 30;
+    rows.forEach((r, i) => {
+      const y = y0 + i * (h + gap); D.text(x0 - 8, y + 21, r.ad, { size: 15, a: 'end', delay: i * 200 });
+      let x = x0;
+      r.parts.forEach((p, j) => { const w = Math.max(18, W * p.v / max); pop(el('rect', { x, y, width: w, height: h, fill: p.c || C.one, stroke: C.ink, 'stroke-width': 2, rx: 2 }), i * 200 + j * 120); D.text(x + w / 2, y + 21, p.t !== undefined ? p.t : String(p.v), { size: 15, delay: i * 200 + j * 120 + 100 }); x += w; });
+      if (r.total) D.brace(x0, x, y + h + 2, r.total, C.green);
+    });
+  };
+  // Problemlerde kullanılan isimler ve doğru ekleri
+  const KIM = [['Ali', "'nin", "'den", "'ye"], ['Ayşe', "'nin", "'den", "'ye"], ['Can', "'ın", "'dan", "'a"], ['Elif', "'in", "'ten", "'e"], ['Zeynep', "'in", "'ten", "'e"], ['Mert', "'in", "'ten", "'e"], ['Deniz', "'in", "'den", "'e"], ['Ece', "'nin", "'den", "'ye"]];
+  const iki = () => { const a = pick(KIM); let b; do { b = pick(KIM); } while (b === a); return [a, b]; };
+
   const FR = (a, b) => F(a, b); // HTML kesir gösterimi (app.js)
 
   // ---------------------------------------------------------------- hata dedektifi
@@ -244,7 +258,12 @@
     katsayiUnut: { what: 'Sabiti doğru taşıdın ama x\'in önündeki sayıya bölmeyi unuttun. 3x, üç tane x demek.', fix: 'denklem' },
     oruntuFark: { what: 'Örüntünün kuralını yanlış buldun. Ardışık iki sayının farkına bak.', fix: 'oruntu' },
     yerineBitisik: { what: '3x, "3 ve x yan yana" değil, 3 çarpı x demek.', fix: 'yerine' },
-    oncelik: { what: 'Önce toplamayı yaptın. İşlem sırasında çarpma, toplamadan önce gelir.', fix: 'yerine' }
+    oncelik: { what: 'Önce toplamayı yaptın. İşlem sırasında çarpma, toplamadan önce gelir.', fix: 'yerine' },
+    anahtarKelime: { what: '"Fazla" ya da "eksik" kelimesine göre işlem seçtin. Kelimeye değil, şeride bak: kimin şeridi daha uzun?', fix: 'serit' },
+    birimSay: { what: 'Toplamı yanlış sayıda parçaya böldün. Şeritteki eşit kutuların hepsini say.', fix: 'serit' },
+    adimUnut: { what: 'Problemin bir adımını atladın. Her bilgiyi kullandın mı? Planı adım adım yaz.', fix: 'adim' },
+    birParca: { what: 'Bir parçayı buldun ama birden fazla parça istendi. Bir parçayı, istenen parça sayısıyla çarp.', fix: 'kesirProblem' },
+    toplamsal: { what: 'Fark kadar ekledin. Orantıda iş çarpmayla büyür: önce 1 tanesini bul.', fix: 'oranti' }
   };
 
   // ---------------------------------------------------------------- TAŞLAR
@@ -669,7 +688,7 @@
     gen: d => {
       if (d === 1) { const k = R(1, 9); return { kind: 'num', dec: true, q: `${FR(k, 10)} ondalık olarak kaç?`, ans: k / 10, ansTxt: dec(k / 10), why: `onda ${k}: ${dec(k / 10)}.`, bug: x => (x === k ? 'ondalikBasamak' : null), hint: 'Virgülden sonraki ilk basamak onda birler.', vis: () => { D.clear(); D.bar(10, k, 40, 70, 280, 45); } }; }
       if (d === 2) { const a = R(2, 9), b = R(11 - a, 9), ans = (a + b) / 10; return { kind: 'num', dec: true, q: `${dec(a / 10)} + ${dec(b / 10)} = ?`, ans, ansTxt: dec(ans), why: `${a} + ${b} = ${a + b} onda bir = ${dec(ans)}.`, bug: x => (Math.abs(x - (a + b) / 100) < 1e-9 ? 'ondalikBasamak' : null), hint: 'Onda birleri say: 10 onda bir = 1 bütün.', vis2: () => { D.clear(); D.bar(10, a, 40, 50, 280, 40); D.bar(10, b, 40, 110, 280, 40, { color: C.ten }); } }; }
-      const a = R(12, 39), b = R(5, 19), ans = (a - b) / 10; return { kind: 'num', dec: true, q: `${dec(a / 10)} − ${dec(b / 10)} = ?`, ans, ansTxt: dec(ans), why: `${a} onda bir − ${b} onda bir = ${a - b} onda bir.`, hint: 'İkisini de onda bir olarak düşün.' };
+      const a = R(12, 39), b = R(5, Math.min(19, a - 3)), ans = (a - b) / 10; return { kind: 'num', dec: true, q: `${dec(a / 10)} − ${dec(b / 10)} = ?`, ans, ansTxt: dec(ans), why: `${a} onda bir − ${b} onda bir = ${a - b} onda bir.`, hint: 'İkisini de onda bir olarak düşün.' };
     },
     sprint: () => { const k = R(1, 9); return { kind: 'num', dec: true, q: `${FR(k, 10)} = ?`, ans: k / 10 }; }
   });
@@ -793,9 +812,115 @@
     sprint: () => { const a = R(2, 5), x = R(1, 9), b = R(1, 9); return { kind: 'num', q: `${a}x + ${b} = ${a * x + b}`, ans: x }; }
   });
 
+  // ===== KAT 6 · PROBLEM AVCISI — her problemde: Anla → Şeritle çiz → Çöz → Kontrol et
+  const RUTIN = 'Avcı rutini: 1) Anla 2) Şeritle çiz 3) Çöz 4) Kontrol et.';
+  add({ id: 'serit', layer: 6, icon: '📊', name: 'Şerit modeli', tag: 'Problemi şeritle çiz, işlem kendini gösterir', needs: ['denklem', 'cikarmaYol'],
+    predict: () => ({ q: 'Ali\'nin 8 bilyesi var. Ali\'nin bilyeleri Ayşe\'ninkinden 3 eksik. Ayşe\'nin kaç bilyesi var?', choices: ['5', '11'], ans: 1,
+      show: async () => { D.clear(); D.strips([{ ad: 'Ali', parts: [{ v: 8 }] }, { ad: 'Ayşe', parts: [{ v: 8, t: '8' }, { v: 3, c: C.green, t: '3' }] }], 12); await say('"Eksik" kelimesi bizi çıkarmaya kandırabilir! Şeride bakalım: Ali\'nin şeridi daha kısa. Ayşe\'ninki üç daha uzun. Sekiz artı üç, on bir. Kelimeye değil, resme güven.'); } }),
+    model: async ask => {
+      D.clear(); D.text(180, 22, 'Can 15, Elif 27 kart. Elif kaç fazla?', { size: 16 });
+      D.strips([{ ad: 'Can', parts: [{ v: 15 }] }, { ad: 'Elif', parts: [{ v: 15, t: '15' }, { v: 12, c: C.green, t: '?' }] }], 27, { y: 50 });
+      await say(RUTIN + ' Önce anlayalım: iki kişinin kartlarını karşılaştırıyoruz. Şeritle çizdim. Elif\'in şeridinde Can kadar parça ve fazlası var.');
+      const r = await ask({ q: 'Fazla parça (?) kaç?', ans: 12, why: 'yirmi yedi eksi on beş, on iki.' });
+      await say('Kontrol: on beş artı on iki, yirmi yedi. Tuttu!');
+      return r;
+    },
+    gen: d => {
+      const [A, B] = iki();
+      if (d === 1) { const a = R(12, 60), b = R(8, 50), T = a + b; return chance(.5)
+        ? { kind: 'num', q: `${A[0]} ve ${B[0]} birlikte ${T} ceviz topladı. ${A[0]} ${a} tane topladı. ${B[0]} kaç tane topladı?`, ans: b, why: `bütün ${T}, bir parça ${a}: diğer parça ${T} − ${a} = ${b}.`, bug: x => (x === T + a ? 'anahtarKelime' : null), hint: 'Şerit çiz: bütün şerit toplam, bir parçası belli.', vis2: () => { D.clear(); D.strips([{ ad: 'Toplam', parts: [{ v: a, t: `${A[0]} ${a}` }, { v: b, c: C.green, t: '?' }], total: String(T) }], T, { y: 50 }); } }
+        : { kind: 'num', q: `${A[0]} ${a}, ${B[0]} ${b} pul biriktirdi. İkisinin toplam kaç pulu var?`, ans: T, why: `${a} + ${b} = ${T}.`, hint: 'İki şeridi uç uca ekle.' }; }
+      if (d === 2) { const a = R(15, 70), k = R(4, Math.min(25, a - 5)), more = chance(.5), b = more ? a + k : a - k;
+        return { kind: 'num', q: `${A[0]}${A[1]} ${a} çıkartması var. ${B[0]}${B[1]} çıkartmaları ${A[0]}${A[2]} ${k} ${more ? 'fazla' : 'eksik'}. ${B[0]}${B[1]} kaç çıkartması var?`, ans: b, why: `${B[0]}${B[1]} şeridi ${k} ${more ? 'daha uzun' : 'daha kısa'}: ${b}.`, bug: x => (x === (more ? a - k : a + k) ? 'anahtarKelime' : null), hint: 'Kimin şeridi daha uzun olmalı?',
+          vis2: () => { D.clear(); D.strips(more ? [{ ad: A[0], parts: [{ v: a }] }, { ad: B[0], parts: [{ v: a, t: String(a) }, { v: k, c: C.green, t: String(k) }] }] : [{ ad: A[0], parts: [{ v: b, t: '?' }, { v: k, c: C.green, t: String(k) }] }, { ad: B[0], parts: [{ v: b, t: '?' }] }], Math.max(a, b), { y: 50 }); } }; }
+      const k = R(2, 4), u = R(4, 15), T = u * (k + 1);
+      return { kind: 'num', q: `${A[0]}${A[1]} parası ${B[0]}${B[1]} parasının ${k} katı. İkisinin toplam ${T} TL'si var. ${B[0]}${B[1]} kaç TL'si var?`, ans: u, why: `${B[0]} 1 kutu, ${A[0]} ${k} kutu: ${k + 1} eşit kutu = ${T}, bir kutu ${u}.`, bug: x => (x === T / k || x === Math.round(T / k) ? 'birimSay' : null), hint: `${B[0]} için 1 kutu, ${A[0]} için ${k} kutu çiz. Toplam kaç kutu?`,
+        vis2: () => { D.clear(); D.strips([{ ad: A[0], parts: Array(k).fill({ v: u, t: '?' }) }, { ad: B[0], parts: [{ v: u, c: C.green, t: '?' }] }], u * k, { y: 50 }); D.text(180, 185, `${k + 1} kutu = ${T}`, { size: 18, color: C.green }); } };
+    },
+    sprint: () => { const a = R(10, 50), k = R(3, 20); return { kind: 'num', q: `A ${a}. B, A'dan ${k} fazla. B?`, ans: a + k }; }
+  });
+
+  add({ id: 'adim', layer: 6, icon: '🧠', name: 'Çok adımlı problem', tag: 'Planla: önce ne, sonra ne?', needs: ['serit'],
+    predict: () => ({ q: 'Bir kalem 4 TL, defter 7 TL. 3 kalem ve 1 defter alıp 30 TL verdim. Para üstünü bulmak için kaç işlem gerekir?', choices: ['1', '2', '3'], ans: 2,
+      show: async () => { D.clear(); D.text(180, 40, '1) 3 × 4 = 12 (kalemler)', { size: 18 }); D.text(180, 85, '2) 12 + 7 = 19 (toplam)', { size: 18, delay: 400 }); D.text(180, 130, '3) 30 − 19 = 11 (para üstü)', { size: 18, color: C.green, delay: 800 }); await say('Üç adım! Önce kalemlerin parası, sonra hepsinin toplamı, en son para üstü. Büyük problemler, küçük adımlardan oluşur.'); } }),
+    model: async ask => {
+      D.clear(); D.text(180, 26, '5 sepet × 6 elma. 7 çürük. Kaç sağlam?', { size: 16 });
+      await say(RUTIN + ' Plan yapalım: önce bütün elmalar, sonra çürükleri çıkar.');
+      const r1 = await ask({ q: '1. adım: 5 × 6 = ? (bütün elmalar)', ans: 30, why: 'beş kere altı otuz.' });
+      D.strips([{ ad: 'Elmalar', parts: [{ v: 23, c: C.green, t: '?' }, { v: 7, c: C.red, t: '7' }], total: '30' }], 30, { y: 60 });
+      const r2 = await ask({ q: '2. adım: 30 − 7 = ? (sağlam)', ans: 23, why: 'otuz eksi yedi yirmi üç.' });
+      await say('Kontrol: yirmi üç sağlam ile yedi çürük, otuz eder. Tuttu!');
+      return r1 && r2;
+    },
+    gen: d => {
+      if (d === 1) { const a = R(3, 8), b = R(4, 9), c = R(2, a * b - 5); return { kind: 'num', q: `${a} sepette ${ds(b)} elma var. ${c} tanesi çürük. Kaç sağlam elma var?`, ans: a * b - c, why: `${a} × ${b} = ${a * b}, ${a * b} − ${c} = ${a * b - c}.`, bug: x => (x === a + b - c || x === b - c ? 'adimUnut' : null), hint: 'Önce bütün elmaları bul.' }; }
+      if (d === 2) { const p = R(2, 9), q = R(5, 15), n = R(2, 5), cost = n * p + q, M = Math.ceil((cost + R(1, 20)) / 10) * 10; return { kind: 'num', q: `Bir kalem ${p} TL, bir defter ${q} TL. ${n} kalem ve 1 defter alıp ${M} TL verdi. Kaç TL para üstü alır?`, ans: M - cost, why: `${n} × ${p} = ${n * p}, + ${q} = ${cost}, ${M} − ${cost} = ${M - cost}.`, bug: x => (x === M - n * p || x === M - p - q || x === M - (p + q) * n ? 'adimUnut' : null), hint: 'Önce harcanan toplam parayı bul.' }; }
+      const a = R(20, 40) * 2, b = R(3, 12); let c = R(3, 12); if ((a - b + c) % 2) c++; const k = a - b + c;
+      return { kind: 'num', q: `Otobüste ${a} kişi vardı. İlk durakta ${b} kişi indi, ${c} kişi bindi. İkinci durakta yolcuların yarısı indi. Otobüste kaç kişi kaldı?`, ans: k / 2, why: `${a} − ${b} + ${c} = ${k}, yarısı inince ${k / 2}.`, bug: x => (x === (a - b) / 2 || x === k ? 'adimUnut' : null), hint: 'Durak durak ilerle: her duraktan sonra kaç kişi var?' };
+    },
+    sprint: () => { const a = R(2, 6), b = R(3, 9), c = R(1, Math.min(9, a * b - 1)); return { kind: 'num', q: `${a} × ${b} − ${c}`, ans: a * b - c }; }
+  });
+
+  add({ id: 'kesirProblem', layer: 6, icon: '📖', name: 'Kesir problemleri', tag: 'Kitabın 3/5\'i: önce 1/5\'i bul', needs: ['serit', 'yuzde'],
+    predict: () => ({ q: '40 sayfalık kitabın 3/4 kadarını okudum. Önce neyi bulmak işimi kolaylaştırır?', choices: ['1/4\'ünü', '3 + 4\'ü'], ans: 0,
+      show: async () => { D.clear(); D.strips([{ ad: 'Kitap', parts: [{ v: 10, c: C.ten, t: '10' }, { v: 10, c: C.ten, t: '10' }, { v: 10, c: C.ten, t: '10' }, { v: 10, c: '#fff', t: '10' }], total: '40 sayfa' }], 40, { y: 50 }); await say('Kırk sayfayı dört eşit kutuya böldük: her kutu on sayfa. Üç kutu okundu: otuz sayfa.'); } }),
+    model: async ask => {
+      D.clear(); D.text(180, 22, '60 TL\'nin 2/5\'i harcandı', { size: 17 });
+      D.strips([{ ad: 'Para', parts: Array(5).fill(0).map((_, i) => ({ v: 12, c: i < 2 ? C.red : '#fff', t: '?' })), total: '60 TL' }], 60, { y: 50 });
+      await say('Bütünü beş eşit kutuya böldüm. İkisi harcandı.');
+      const r1 = await ask({ q: 'Bir kutu kaç TL? (60 ÷ 5)', ans: 12, why: 'altmış bölü beş on iki.' });
+      const r2 = await ask({ q: 'Kaç TL kaldı? (3 kutu)', ans: 36, why: 'üç kere on iki otuz altı.' });
+      return r1 && r2;
+    },
+    gen: d => {
+      const n = pick([3, 4, 5, 6, 8, 10]), k = R(1, n - 1), u = R(2, 12), N = n * u;
+      if (d === 3) { const p = pick([10, 20, 25, 50]), price = (100 / gcd(100, p)) * R(2, 9) * (p === 25 ? 1 : 1); const P = price * (p === 25 ? 4 : 1); return { kind: 'num', q: `${P} TL'lik oyuncakta %${p} indirim var. İndirimli fiyat kaç TL?`, ans: P - P * p / 100, why: `%${p} = ${P * p / 100} TL indirim, ${P} − ${P * p / 100} = ${P - P * p / 100}.`, bug: x => (x === P * p / 100 ? 'adimUnut' : x === P - p ? 'yuzdeSadece' : null), hint: 'Önce indirim miktarını bul, sonra fiyattan çıkar.' }; }
+      const left = d === 2;
+      return { kind: 'num', q: `${N} sayfalık kitabın ${FR(k, n)} kadarını okudu. ${left ? 'Kaç sayfa okuyacak kaldı?' : 'Kaç sayfa okudu?'}`, ans: left ? N - k * u : k * u, why: `bir kutu ${N} ÷ ${n} = ${u}; ${left ? `kalan ${n - k} kutu = ${(n - k) * u}` : `${k} kutu = ${k * u}`}.`, bug: x => (x === u ? 'birParca' : left && x === k * u ? 'adimUnut' : null), hint: `Önce bütünü ${n} eşit kutuya böl.`,
+        vis2: () => { D.clear(); D.strips([{ ad: 'Kitap', parts: Array(n).fill(0).map((_, i) => ({ v: u, c: i < k ? C.ten : '#fff', t: n <= 6 ? String(u) : '' })), total: `${N} sayfa` }], N, { y: 50 }); } };
+    },
+    sprint: () => { const n = pick([2, 3, 4, 5]), u = R(2, 9); return { kind: 'num', q: `${n * u}'${sx(n * u, 'gen').split("'")[1]} 1/${n}'i`, ans: u }; }
+  });
+
+  add({ id: 'oranti', layer: 6, icon: '🐆', name: 'Oran-orantı', tag: 'Safari yarışı: önce 1 tanesini bul', needs: ['serit', 'izgara'],
+    predict: () => ({ q: '3 dondurma 12 TL ise 5 dondurma kaç TL?', choices: ['14', '20', '60'], ans: 1,
+      show: async () => { D.clear(); D.text(180, 40, '3 → 12 TL', { size: 22 }); D.text(180, 85, '1 → 12 ÷ 3 = 4 TL', { size: 22, color: C.ten, delay: 300 }); D.text(180, 130, '5 → 5 × 4 = 20 TL', { size: 22, color: C.green, delay: 700 }); await say('Önce bir tanesinin fiyatını buluruz: on iki bölü üç, dört lira. Beş tanesi beş kere dört, yirmi lira. On dört değil: iki dondurma iki lira etmez!'); } }),
+    model: async ask => {
+      D.clear(); D.text(180, 30, '🐆 2 saatte 80 km', { size: 20 }); await say('Leopar iki saatte seksen kilometre koşuyor. Aynı hızla beş saatte ne kadar gider?');
+      const r1 = await ask({ q: '1 saatte kaç km? (80 ÷ 2)', ans: 40, why: 'saatte kırk kilometre.' });
+      const r2 = await ask({ q: '5 saatte kaç km? (5 × 40)', ans: 200, why: 'beş kere kırk iki yüz.' });
+      return r1 && r2;
+    },
+    gen: d => {
+      const u = R(2, 15), a = R(2, 6); let b; do { b = R(2, 9); } while (b === a);
+      if (d === 1) return { kind: 'num', q: `${a} kalem ${a * u} TL ise 1 kalem kaç TL?`, ans: u, why: `${a * u} ÷ ${a} = ${u}.`, hint: 'Toplam fiyatı kalem sayısına böl.' };
+      if (d === 2) return { kind: 'num', q: `${a} defter ${a * u} TL ise ${b} defter kaç TL?`, ans: b * u, why: `1 defter ${u} TL, ${b} defter ${b * u} TL.`, bug: x => (x === a * u + (b - a) ? 'toplamsal' : null), hint: 'Önce 1 defterin fiyatını bul.' };
+      const v = R(3, 12) * 10, t = R(2, 4); let t2; do { t2 = R(2, 7); } while (t2 === t);
+      return { kind: 'num', q: `🐆 Bir leopar ${t} saatte ${v * t} km koşuyor. Aynı hızla ${t2} saatte kaç km koşar?`, ans: v * t2, why: `saatte ${v} km; ${t2} saatte ${v * t2} km.`, bug: x => (x === v * t + (t2 - t) ? 'toplamsal' : null), hint: 'Önce 1 saatte kaç km koştuğunu bul.' };
+    },
+    sprint: () => { const u = R(2, 9), a = R(2, 5), b = R(2, 9); return { kind: 'num', q: `${a} → ${a * u}; ${b} → ?`, ans: b * u }; }
+  });
+
+  add({ id: 'tahmin', layer: 6, icon: '🧭', name: 'Tahmin ve kontrol', tag: 'Cevap mantıklı mı? Yaklaşık hesapla', needs: ['serit', 'yuvarla'],
+    predict: () => ({ q: 'Can 47 × 3 = 1401 buldu. Sence mantıklı mı?', choices: ['Mantıklı', 'Mantıksız'], ans: 1,
+      show: async () => { D.clear(); D.text(180, 50, '47 ≈ 50', { size: 24 }); D.text(180, 100, '50 × 3 = 150', { size: 24, color: C.ten, delay: 300 }); D.text(180, 150, '1401 ≫ 150 ✖', { size: 24, color: C.red, delay: 700 }); await say('Kırk yediyi elliye yuvarlayalım: elli kere üç, yüz elli. Cevap yüz elli civarında olmalı. Bin dört yüz bir çok büyük, demek ki bir yerde hata var. Doğrusu yüz kırk bir.'); } }),
+    model: async ask => {
+      D.clear(); D.text(180, 40, '312 + 489 ≈ ?', { size: 24 }); await say('Tam hesaplamadan önce yaklaşık bir değer bulalım. Bu, cevabımızı kontrol etmenin en güçlü yolu.');
+      D.text(180, 90, '300 + 500', { size: 22, color: C.ten, delay: 200 });
+      const r = await ask({ q: '300 + 500 = ?', ans: 800, why: 'cevap sekiz yüz civarında olmalı.' });
+      D.text(180, 150, 'Gerçek: 801 ✔ (800\'e yakın)', { size: 18, color: C.green }); return r;
+    },
+    gen: d => {
+      if (d === 1) { const a = R(21, 89) * 10 + R(1, 9), b = R(11, 69) * 10 + R(1, 9), e = Math.round(a / 100) * 100 + Math.round(b / 100) * 100; const ch = shuffle([e, e + 300, Math.max(100, e - 300)]); return { kind: 'choice', q: `${a} + ${b} yaklaşık kaçtır?`, choices: ch.map(String), ans: ch.indexOf(e), why: `${Math.round(a / 100) * 100} + ${Math.round(b / 100) * 100} = ${e}.`, hint: 'Sayıları en yakın yüzlüğe yuvarla.' }; }
+      if (d === 2) { const it = pick([['Bir öğrencinin boyu', ['140 cm', '14 cm', '1400 cm'], 0], ['Bir ekmeğin fiyatı', ['10 TL', '1000 TL', '1 kuruş'], 0], ['Bir sınıftaki öğrenci sayısı', ['28', '280', '2'], 0], ['Bir filin kütlesi', ['5 kg', '5000 kg', '5 g'], 1], ['Okul ile ev arası yürüme süresi', ['15 dakika', '15 saniye', '15 gün'], 0]]); const order = shuffle([0, 1, 2]); return { kind: 'choice', q: `${it[0]} için hangisi mantıklı?`, choices: order.map(i => it[1][i]), ans: order.indexOf(it[2]), why: 'gerçek hayatla karşılaştırdık.', hint: 'Gözünün önüne getir.' }; }
+      const a = R(12, 98), b = R(3, 9), right = chance(.5), shown = right ? a * b : pick([a * b * 10 + R(1, 9), a * b + 100 * R(1, 4), a + b]);
+      return { kind: 'choice', q: `${pick(KIM)[0]}, ${a} × ${b} = ${shown} buldu. Mantıklı mı?`, choices: ['Mantıklı', 'Mantıksız'], ans: right ? 0 : 1, why: `${Math.round(a / 10) * 10} × ${b} ≈ ${Math.round(a / 10) * 10 * b}; gerçek sonuç ${a * b}.`, hint: `${a}'yı en yakın onluğa yuvarla ve çarp.`.replace(`${a}'yı`, `${sx(a, 'acc')}`) };
+    },
+    sprint: () => { const a = R(11, 99), b = R(11, 99); const e = Math.round(a / 10) * 10 + Math.round(b / 10) * 10; return { kind: 'num', q: `${a} + ${b} ≈ ? (onluğa yuvarla)`, ans: e }; }
+  });
+
   // ===== ÜST KATLAR (yapım aşamasında) — piramidin tamamını göstermek için
   const FUTURE = [
-    [6, ['📊 Şerit modeli', '🧠 Çok adımlı problem']]
   ];
   const LAYER = { 1: 'Miktar sezgisi', 2: 'Sayının adresi', 3: 'İşlem esnekliği', 4: 'Parça ve bütün', 5: 'Bilinmeyeni yakala', 6: 'Problem avcısı' };
   const byId = id => SK.find(s => s.id === id);
@@ -867,7 +992,7 @@
       <span>⬜ kilitli</span><span>🟧 sıradaki</span><span style="color:#2bb3a3">■ kuruldu</span><span style="color:#d89200">■ altın</span><span>🔁 tekrar zamanı</span><span>⚡ çatlak</span></div></div>`;
     h += `<button class="btn green" id="pyGo">${due.length ? `🔁 Bugünün tırmanışı (${due.length} tekrar${fr ? ' + yeni taş' : ''})` : fr ? `🧱 Sıradaki taş: ${fr.icon} ${fr.name}` : '🏆 Hepsi kuruldu!'}</button>`;
     h += `<div class="pyr-wrap">`;
-    [1, 2, 3, 4, 5].forEach(L => {
+    [1, 2, 3, 4, 5, 6].forEach(L => {
       h += `<div class="pyr-row">${SK.filter(s => s.layer === L).map(s => { const x = st(s.id); const cls = x.lvl >= 3 ? 'b' + x.lvl : isOpen(s) ? (x.lvl ? 'b' + x.lvl : 'open') : ''; return `<button class="brick ${cls} ${x.crack ? 'crack' : ''} ${isDue(s) ? 'due' : ''}" data-sk="${s.id}"><span class="ic">${isOpen(s) || x.lvl ? s.icon : '🔒'}</span>${s.name}</button>`; }).join('')}</div><div class="pyr-lab">${L}. kat · ${LAYER[L]}</div>`;
     });
     FUTURE.forEach(([L, list]) => { h += `<div class="pyr-row">${list.map(n => `<span class="brick future"><span class="ic">${n.split(' ')[0]}</span>${n.split(' ').slice(1).join(' ')}</span>`).join('')}</div><div class="pyr-lab">${L}. kat · ${LAYER[L]} <span style="font-weight:600">(yapım aşamasında 🏗️)</span></div>`; });

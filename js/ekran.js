@@ -27,6 +27,19 @@
   .share{background:linear-gradient(90deg,#25d366,#1fb457);box-shadow:0 5px 0 #168c43}
   .fitted{transform-origin:top center}
   .card.res{padding:10px 14px;margin:6px 0}.card.res>div:first-child{font-size:46px!important;line-height:1.1}.card.res h2{margin:4px 0}
+  .lesson{position:relative}
+  .lesson.has-teach{padding-bottom:64px}
+  #view.teach-on .mascot .ani{visibility:hidden}
+  .teach{position:absolute;z-index:3;pointer-events:none;line-height:1;transition:all .7s cubic-bezier(.3,1.3,.5,1);
+    right:8px;bottom:6px;font-size:52px;transform:none}
+  .teach .tf{display:inline-block;animation:tbob 2.4s ease-in-out infinite}
+  .teach.talk .tf{animation:ttalk .32s ease-in-out infinite alternate}
+  .teach .stick{position:absolute;font-size:.55em;left:-.55em;top:.35em;transform:rotate(-20deg);transition:opacity .4s}
+  .teach.big{right:50%;bottom:50%;transform:translate(50%,50%);font-size:118px}
+  .teach.big .stick{opacity:0}
+  .teach.big::after{content:"";position:absolute;left:12%;right:12%;bottom:-10px;height:12px;border-radius:50%;background:rgba(0,0,0,.12)}
+  @keyframes tbob{0%,100%{transform:translateY(0) rotate(-2deg)}50%{transform:translateY(-6px) rotate(2deg)}}
+  @keyframes ttalk{from{transform:scale(1,1) rotate(-3deg)}to{transform:scale(1.06,.95) rotate(3deg)}}
   .guide{background:#eafbf1;border-left:6px solid var(--ok);border-radius:12px;padding:10px 12px;margin:10px 0;text-align:left}
   `;
   document.head.appendChild(css);
@@ -106,8 +119,31 @@
     _lesson(i, k, opt || (k === 0 ? { auto: true } : undefined));
     const L = TOPICS[i].lesson;
     if (k === L.length - 1) { LR()[TOPICS[i].id] = 1; justLearned = i; save(); }
+    teacher(TOPICS[i]);
     fit();
   };
+
+  // Tahtanın önünde öğretmen hayvan: tahta boşken ortada büyük durur ve konuşur,
+  // yazı başlayınca tahtanın köşesine geçer; konuşurken kıpırdar.
+  let tObs = [];
+  function teacher(t) {
+    tObs.forEach(o => o.disconnect()); tObs = [];
+    view.classList.remove('teach-on');
+    const card = view.querySelector('.lesson'); if (!card) return;
+    const el = document.createElement('div');
+    el.className = 'teach'; el.setAttribute('aria-hidden', 'true');
+    el.innerHTML = `<span class="tf">${t.emoji}</span><span class="stick">🖍️</span>`;
+    card.classList.add('has-teach'); card.appendChild(el); view.classList.add('teach-on');
+    const ani = view.querySelector('.mascot .ani');
+    const upd = () => {
+      const empty = card.classList.contains('narr-on') && !card.querySelector('.seg:not(.pend),.vseg:not(.pend)');
+      el.classList.toggle('big', empty);
+      el.classList.toggle('talk', !!(ani && ani.classList.contains('talk')));
+    };
+    const o1 = new MutationObserver(upd); o1.observe(card, { attributes: true, attributeFilter: ['class'], subtree: true }); tObs.push(o1);
+    if (ani) { const o2 = new MutationObserver(upd); o2.observe(ani, { attributes: true, attributeFilter: ['class'] }); tObs.push(o2); }
+    upd();
+  }
 
   const _startQuiz = startQuiz;
   startQuiz = function (i, mode) {
@@ -230,6 +266,7 @@
   function doFit() {
     const focus = !!view.querySelector('.qtop,.lesson');
     document.body.classList.toggle('focus', focus);
+    view.classList.toggle('teach-on', !!view.querySelector('.teach'));
     view.style.zoom = '';
     if (!view.querySelector(FIT_SEL)) return;
     const top = $('top') ? $('top').offsetHeight : 0, bar = focus ? 0 : nav.offsetHeight;

@@ -42,6 +42,12 @@
   @keyframes tbreath{0%,100%{transform:translateY(0) scale(1,1)}50%{transform:translateY(-2px) scale(1.015,1.025)}}
   @keyframes tscrib{from{transform:rotate(-26deg) translate(0,0)}to{transform:rotate(-14deg) translate(-2px,2px)}}
   @media (prefers-reduced-motion:reduce){.teach,.teach *{animation:none!important;transition:none!important}}
+  .aibox{background:#fff7e0;border:3px solid #ffc93c;border-radius:16px;padding:10px 12px;margin:8px 0;text-align:left;font-size:17px;line-height:1.35;animation:aiin .35s ease-out}
+  .aibox .dots{display:inline-flex;gap:4px;vertical-align:middle}
+  .aibox .dots i{width:7px;height:7px;border-radius:50%;background:#e0a100;animation:aidot 1s infinite ease-in-out}
+  .aibox .dots i:nth-child(2){animation-delay:.15s}.aibox .dots i:nth-child(3){animation-delay:.3s}
+  @keyframes aidot{0%,80%,100%{opacity:.25;transform:translateY(0)}40%{opacity:1;transform:translateY(-4px)}}
+  @keyframes aiin{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
   .guide{background:#eafbf1;border-left:6px solid var(--ok);border-radius:12px;padding:10px 12px;margin:10px 0;text-align:left}
   `;
   document.head.appendChild(css);
@@ -198,6 +204,53 @@
     if (ok && clean) { if (++A.s >= 3 && A.d < 3) { A.d++; A.s = 0; A.max = Math.max(A.max, A.d); } }
     else if (!ok) { A.d = Math.max(1, A.d - 1); A.s = 0; }
     else A.s = 0;
+  };
+
+  // ---------------------------------------------------------------- 5) yapay zekâ öğretmen
+  // Yanlış cevapta: ilk denemede çocuğun cevabına göre ipucu (cevabı söylemeden),
+  // son denemede de nerede karıştırdığını açıklar. Ad vb. kişisel bilgi gönderilmez.
+  const txt = h => { const d = document.createElement('div'); d.innerHTML = h || ''; d.querySelectorAll('.frac').forEach(f => { const [a, b] = f.children; f.replaceWith(` ${a ? a.textContent : ''}/${b ? b.textContent : ''} `); }); d.querySelectorAll('br').forEach(b => b.replaceWith('. ')); return d.textContent.replace(/\s+/g, ' ').trim(); };
+  let aiOff = 0, pickTxt = '';
+  const _answerChoice = answerChoice;
+  answerChoice = function (k, btn) { const q = Q && Q.cur; pickTxt = q && q.choices && q.choices[k] ? txt(q.choices[k].h) : ''; return _answerChoice(k, btn); };
+  function speakAI(s) {
+    try {
+      if (!S.sound || !('speechSynthesis' in window)) return;
+      const v = speechSynthesis.getVoices().find(x => x.lang.toLowerCase().startsWith('tr'));
+      if (!v) return;
+      speechSynthesis.cancel();
+      const u = new SpeechSynthesisUtterance(s.replace(/(\d)\.(?=\s|$)/g, '$1,')); u.voice = v; u.lang = v.lang; u.rate = 1.05;
+      speechSynthesis.speak(u);
+    } catch (e) {}
+  }
+  async function askAI(q, tur, cevap) {
+    if (!navigator.onLine || Date.now() < aiOff || !cevap) return;
+    const f = $('fbx'); if (!f) return;
+    const t = TOPICS[q.ti];
+    const box = document.createElement('div'); box.className = 'aibox';
+    box.innerHTML = `<b>${t.emoji} ${esc((t.animal || '').split(' ')[0] || T('Öğretmen'))}:</b> <span class="aitx"><i class="dots"><i></i><i></i><i></i></i></span>`;
+    f.prepend(box); fit();
+    try {
+      const ctl = new AbortController(), to = setTimeout(() => ctl.abort(), 9000);
+      const r = await fetch('/api/aciklama', { method: 'POST', signal: ctl.signal, headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ tur, konu: t.name, soru: txt(q.q) + (q.sub ? ' (' + txt(q.sub) + ')' : ''), dogru: txt(answerText(q)), cevap, cozum: txt(q.exp) }) });
+      clearTimeout(to);
+      const j = r.ok ? await r.json() : null;
+      if (!r.ok && (r.status === 503 || r.status === 429)) aiOff = Date.now() + 5 * 60000;
+      if (!j || !j.metin || Q == null || Q.cur !== q) { box.remove(); fit(); return; }
+      box.querySelector('.aitx').textContent = j.metin;
+      speakAI(j.metin); fit();
+    } catch (e) { box.remove(); fit(); }
+  }
+  const _outcomeAI = outcome;
+  outcome = function (ok, paint) {
+    const q = Q && Q.cur;
+    const cevap = q ? (q.choices ? pickTxt : String(q.input || '').replace('-', '−')) : '';
+    const before = q ? q.tries : 0;
+    _outcomeAI(ok, paint);
+    if (ok || !q || !Q || Q.mode === 'speed') return;
+    if (q.done) askAI(q, 'aciklama', cevap);
+    else if (q.tries === 1 && before === 0) askAI(q, 'ipucu', cevap);
   };
 
   const _nextQ = nextQ;

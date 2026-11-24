@@ -30,16 +30,18 @@
   .lesson{position:relative}
   .lesson.has-teach{padding-bottom:64px}
   #view.teach-on .mascot .ani{visibility:hidden}
-  .teach{position:absolute;z-index:3;pointer-events:none;line-height:1;transition:all .7s cubic-bezier(.3,1.3,.5,1);
+  .teach{position:absolute;z-index:3;pointer-events:none;line-height:1;transition:right .9s ease-in-out,bottom .9s ease-in-out,transform .9s ease-in-out,font-size .9s ease-in-out;
     right:8px;bottom:6px;font-size:52px;transform:none}
-  .teach .tf{display:inline-block;animation:tbob 2.4s ease-in-out infinite}
-  .teach.talk .tf{animation:ttalk .32s ease-in-out infinite alternate}
-  .teach .stick{position:absolute;font-size:.55em;left:-.55em;top:.35em;transform:rotate(-20deg);transition:opacity .4s}
+  .teach .tg{display:inline-block;transform-origin:50% 90%}
+  .teach .tf{display:inline-block;transform-origin:50% 100%;animation:tbreath 3.6s ease-in-out infinite}
+  .teach .stick{position:absolute;font-size:.55em;left:-.55em;top:.35em;transform:rotate(-20deg);transition:opacity .4s;transform-origin:80% 80%}
+  .teach.write .stick{animation:tscrib .5s ease-in-out infinite alternate}
   .teach.big{right:50%;bottom:50%;transform:translate(50%,50%);font-size:118px}
   .teach.big .stick{opacity:0}
-  .teach.big::after{content:"";position:absolute;left:12%;right:12%;bottom:-10px;height:12px;border-radius:50%;background:rgba(0,0,0,.12)}
-  @keyframes tbob{0%,100%{transform:translateY(0) rotate(-2deg)}50%{transform:translateY(-6px) rotate(2deg)}}
-  @keyframes ttalk{from{transform:scale(1,1) rotate(-3deg)}to{transform:scale(1.06,.95) rotate(3deg)}}
+  .teach::after{content:"";position:absolute;left:15%;right:15%;bottom:-6px;height:8px;border-radius:50%;background:rgba(0,0,0,.10);z-index:-1}
+  @keyframes tbreath{0%,100%{transform:translateY(0) scale(1,1)}50%{transform:translateY(-2px) scale(1.015,1.025)}}
+  @keyframes tscrib{from{transform:rotate(-26deg) translate(0,0)}to{transform:rotate(-14deg) translate(-2px,2px)}}
+  @media (prefers-reduced-motion:reduce){.teach,.teach *{animation:none!important;transition:none!important}}
   .guide{background:#eafbf1;border-left:6px solid var(--ok);border-radius:12px;padding:10px 12px;margin:10px 0;text-align:left}
   `;
   document.head.appendChild(css);
@@ -132,13 +134,39 @@
     const card = view.querySelector('.lesson'); if (!card) return;
     const el = document.createElement('div');
     el.className = 'teach'; el.setAttribute('aria-hidden', 'true');
-    el.innerHTML = `<span class="tf">${t.emoji}</span><span class="stick">🖍️</span>`;
+    el.innerHTML = `<span class="tg"><span class="tf">${t.emoji}</span></span><span class="stick">🖍️</span>`;
     card.classList.add('has-teach'); card.appendChild(el); view.classList.add('teach-on');
-    const ani = view.querySelector('.mascot .ani');
+    const ani = view.querySelector('.mascot .ani'), tg = el.querySelector('.tg');
+    const calm = matchMedia('(prefers-reduced-motion: reduce)').matches;
+    // Konuşurken arada bir doğal jest: başını sallar, hafifçe yana eğer, minik zıplar. Hep aynı hareketi tekrarlamaz.
+    const G = {
+      nod: [[{ transform: 'none' }, { transform: 'translateY(3px) scale(1.02,.97)' }, { transform: 'translateY(-2px)' }, { transform: 'translateY(2px) scale(1.01,.98)' }, { transform: 'none' }], 700, 'ease-in-out'],
+      tiltL: [[{ transform: 'none' }, { transform: 'rotate(-7deg)', offset: .3 }, { transform: 'rotate(-7deg)', offset: .75 }, { transform: 'none' }], 1300, 'ease-in-out'],
+      tiltR: [[{ transform: 'none' }, { transform: 'rotate(7deg)', offset: .3 }, { transform: 'rotate(7deg)', offset: .75 }, { transform: 'none' }], 1300, 'ease-in-out'],
+      hop: [[{ transform: 'none' }, { transform: 'scale(1.04,.94)', offset: .15 }, { transform: 'translateY(-14px) scale(.97,1.04)', offset: .45 }, { transform: 'scale(1.05,.93)', offset: .8 }, { transform: 'none' }], 650, 'ease-out'],
+      lean: [[{ transform: 'none' }, { transform: 'translateX(-5px) rotate(-4deg)', offset: .35 }, { transform: 'translateX(-5px) rotate(-4deg)', offset: .7 }, { transform: 'none' }], 1500, 'ease-in-out']
+    };
+    const BAG = ['nod', 'nod', 'nod', 'tiltL', 'tiltR', 'lean', 'hop'];
+    let talkOn = false, gT = 0, lastG = '', wasBig = null;
+    const gesture = name => { if (calm || !tg.animate) return; const [k, d, e] = G[name]; tg.animate(k, { duration: d, easing: e }); };
+    const loop = () => {
+      clearTimeout(gT); if (!talkOn || !el.isConnected) return;
+      let g; do { g = BAG[Math.floor(Math.random() * BAG.length)]; } while (g === lastG && g !== 'nod');
+      if (g === 'hop' && !el.classList.contains('big')) g = 'nod';
+      lastG = g; gesture(g);
+      gT = setTimeout(loop, 1800 + Math.random() * 2200);
+    };
     const upd = () => {
+      if (!el.isConnected) { clearTimeout(gT); return; }
       const empty = card.classList.contains('narr-on') && !card.querySelector('.seg:not(.pend),.vseg:not(.pend)');
       el.classList.toggle('big', empty);
-      el.classList.toggle('talk', !!(ani && ani.classList.contains('talk')));
+      // Köşeye/ortaya geçerken küçük adımlarla yürür
+      if (wasBig !== null && wasBig !== empty && !calm && tg.animate) tg.animate([{ transform: 'none' }, { transform: 'translateY(-6px)' }, { transform: 'none' }, { transform: 'translateY(-6px)' }, { transform: 'none' }, { transform: 'translateY(-4px)' }, { transform: 'none' }], { duration: 900, easing: 'ease-in-out' });
+      wasBig = empty;
+      el.classList.toggle('write', !empty && !!card.querySelector('.writing'));
+      const talk = !!(ani && ani.classList.contains('talk'));
+      if (talk && !talkOn) { talkOn = true; gT = setTimeout(loop, 500 + Math.random() * 600); }
+      else if (!talk && talkOn) { talkOn = false; clearTimeout(gT); }
     };
     const o1 = new MutationObserver(upd); o1.observe(card, { attributes: true, attributeFilter: ['class'], subtree: true }); tObs.push(o1);
     if (ani) { const o2 = new MutationObserver(upd); o2.observe(ani, { attributes: true, attributeFilter: ['class'] }); tObs.push(o2); }

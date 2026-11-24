@@ -210,6 +210,7 @@
   // Yanlış cevapta: ilk denemede çocuğun cevabına göre ipucu (cevabı söylemeden),
   // son denemede de nerede karıştırdığını açıklar. Ad vb. kişisel bilgi gönderilmez.
   const txt = h => { const d = document.createElement('div'); d.innerHTML = h || ''; d.querySelectorAll('.frac').forEach(f => { const [a, b] = f.children; f.replaceWith(` ${a ? a.textContent : ''}/${b ? b.textContent : ''} `); }); d.querySelectorAll('br').forEach(b => b.replaceWith('. ')); return d.textContent.replace(/\s+/g, ' ').trim(); };
+  const AI_ON = false; // şimdilik kapalı (kullanıcı isteği, 2026-11-24); açmak için true yap ve api/aciklama.js'i yayına al
   let aiOff = 0, pickTxt = '';
   const _answerChoice = answerChoice;
   answerChoice = function (k, btn) { const q = Q && Q.cur; pickTxt = q && q.choices && q.choices[k] ? txt(q.choices[k].h) : ''; return _answerChoice(k, btn); };
@@ -248,7 +249,7 @@
     const cevap = q ? (q.choices ? pickTxt : String(q.input || '').replace('-', '−')) : '';
     const before = q ? q.tries : 0;
     _outcomeAI(ok, paint);
-    if (ok || !q || !Q || Q.mode === 'speed') return;
+    if (!AI_ON || ok || !q || !Q || Q.mode === 'speed') return;
     if (q.done) askAI(q, 'aciklama', cevap);
     else if (q.tries === 1 && before === 0) askAI(q, 'ipucu', cevap);
   };

@@ -116,22 +116,24 @@
   // Android/TWA'da geri tuşu sayfa geçmişinde geri gider; geçmiş boşsa uygulama kapanır.
   // Başa bir "tuzak" kaydı koyup geri tuşunu yakalıyoruz.
   let exitOk = false, quiet = false;
-  const arm = () => { try { if (!history.state || !history.state.kilit) history.pushState({ kilit: 1 }, ''); } catch (e) {} };
+  // Chrome, kullanıcı dokunmadan eklenen geçmiş kayıtlarını geri tuşunda ATLAR (history manipulation intervention).
+  // Bu yüzden tuzak kaydı yalnızca bir dokunuşun içinde eklenir: her dokunuşta, kilit açıksa ve tuzak yoksa kurulur.
+  const arm = () => { try { if (!exitOk && (!history.state || !history.state.kilit)) history.pushState({ kilit: 1 }, ''); } catch (e) {} };
+  ['pointerdown', 'keydown'].forEach(ev => document.addEventListener(ev, () => { if (locked()) arm(); }, true));
   window.addEventListener('popstate', () => {
     if (quiet) { quiet = false; return; }
     if (exitOk || !locked()) return;                            // kilit yoksa normal davran (bir sonraki geri çıkar)
-    arm();
+    // Burada yeniden kurmuyoruz (dokunuş yok, Chrome atlardı); PIN ekranındaki ilk dokunuş tuzağı yeniden kurar.
     askPin(T('Çıkmak için ebeveyn onayı'), T`Bugünkü hedefe ${Math.max(0, L.goal - progress())} ${L.type === 'dk' ? T('dakika') : T('tur')} kaldı.`, () => {
       openModal(T`<div class="head"><div class="big">👨‍👩‍👦</div><h2>Ebeveyn onayı</h2></div>
         <button class="btn" id="lkExit">🚪 Şimdi çıkışa izin ver</button>
         <button class="btn ghost" id="lkDay">🔓 Bugün için kilidi kaldır</button>
         <button class="btn ghost" onclick="closeModal()">Vazgeç</button>`);
-      $('lkExit').onclick = () => { closeModal(); exitOk = true; quiet = true; history.back(); floatText(T('Çıkmak için geri tuşuna bir kez daha bas')); setTimeout(() => { exitOk = false; if (L.on) arm(); }, 30000); };
+      $('lkExit').onclick = () => { closeModal(); exitOk = true; if (history.state && history.state.kilit) { quiet = true; history.back(); } floatText(T('Şimdi geri tuşuyla çıkabilirsin')); setTimeout(() => { exitOk = false; }, 60000); };
       $('lkDay').onclick = () => { sess().open = true; store(); paint(); closeModal(); };
     }, { cancel: T('Çalışmaya devam ✏️') });
   });
   window.addEventListener('beforeunload', e => { if (locked() && !exitOk) { e.preventDefault(); e.returnValue = ''; } });
-  if (L.on) arm();
 
   // ---------------------------------------------------------------- Ayarlar: ebeveyn bölümü
   const GUIDE = T`<details style="margin-top:8px"><summary style="cursor:pointer;font-weight:700">📱 Telefonun kendi kilidi (önerilir)</summary>

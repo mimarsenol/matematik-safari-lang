@@ -14,6 +14,8 @@
   const css = document.createElement('style');
   css.textContent = `
   #top #btnHome,#top #btnLb,#top #btnZoo,#top #btnSet{display:none}
+  #top{position:sticky;top:0;z-index:12;background:var(--bg);margin:0 -12px;padding:calc(8px + env(safe-area-inset-top)) 12px 8px;box-shadow:0 4px 10px -6px rgba(0,0,0,.18)}
+  #app{padding-top:0!important}
   body:not(.focus) #app{padding-bottom:calc(var(--navh,84px) + 16px)!important}
   #nav{position:fixed;left:0;right:0;bottom:0;z-index:15;background:#fff;box-shadow:0 -4px 14px rgba(0,0,0,.08);
     border-radius:22px 22px 0 0;padding:6px 6px calc(6px + env(safe-area-inset-bottom));display:flex;justify-content:center}

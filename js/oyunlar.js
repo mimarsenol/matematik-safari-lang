@@ -109,11 +109,13 @@
   }
   function quitAsk(g) {
     if (!g.started) { G = null; Q = null; return hub(); }
-    openModal(T`<div class="head"><div class="big">🥺</div><h2>Oyundan çıkmak istiyor musun?</h2><p>Bu oyunun puanı kaydedilmeyecek.</p></div><div class="row"><button class="btn ghost" id="oyC">Devam et</button><button class="btn" id="oyQ">Çık</button></div>`);
+    openModal(T`<div class="head"><div class="big">🥺</div><h2>Oyundan çıkmak istiyor musun?</h2><p>Bu oyunun puanı kaydedilmeyecek.</p></div><div class="row"><button class="btn ghost" id="oyQuitNo">Devam et</button><button class="btn" id="oyQuitYes">Çık</button></div>`);
     g.paused = true;
-    $('oyC').onclick = () => { closeModal(); g.paused = false; };
-    $('oyQ').onclick = () => { G = null; Q = null; hub(); };
+    $('oyQuitNo').onclick = () => { closeModal(); g.paused = false; };
+    $('oyQuitYes').onclick = () => { g.paused = false; G = null; Q = null; hub(); };
   }
+  // Çıkış penceresi açıkken oyun durur; pencere herhangi bir yoldan kapanınca devam eder
+  const isPaused = g => { if (g.paused && $('modal').classList.contains('hidden')) g.paused = false; return !!g.paused; };
   const isLong = h => h.replace(/<[^>]+>/g, '').length > 18;
   const shakeEl = el => { if (!el) return; el.classList.remove('shake'); void el.offsetWidth; el.classList.add('shake'); };
   const lvChip = lv => `<span class="chip" style="box-shadow:none">${LV[lv].e} ${LV[lv].n}</span>`;
@@ -241,7 +243,7 @@
     $('qx').onclick = () => quitAsk(g);
     nextQ();
     loop(g, dt => {
-      if (g.paused || !g.cur || g.cur.done) return;
+      if (isPaused(g) || !g.cur || g.cur.done) return;
       g.t += dt;
       const H = $('oyA').clientHeight;
       for (const b of g.bal) {
@@ -275,7 +277,7 @@
       g.started = g.started || g.n > 0;
     }
     function tap(b) {
-      const q = g.cur; if (!q || q.done || b.gone || g.paused) return;
+      const q = g.cur; if (!q || q.done || b.gone || isPaused(g)) return;
       g.started = true;
       if (b.ok) {
         q.done = true; b.gone = true; b.el.classList.add('pop');
@@ -327,7 +329,7 @@
     $('qx').onclick = () => quitAsk(g);
     next();
     loop(g, dt => {
-      if (g.paused) return;
+      if (isPaused(g)) return;
       const before = Math.ceil(g.time);
       g.time -= dt;
       const now = Math.max(0, Math.ceil(g.time));
@@ -343,7 +345,7 @@
       $('oyCh').querySelectorAll('button').forEach(b => b.addEventListener('pointerdown', e => { e.preventDefault(); pickA(b); }));
     }
     function pickA(b) {
-      const q = g.cur; if (!q || q.done || g.paused) return;
+      const q = g.cur; if (!q || q.done || isPaused(g)) return;
       q.done = true; g.started = true; g.n++;
       const ok = +b.dataset.v === q.a;
       if (ok) {
@@ -418,7 +420,7 @@
       $('qx').onclick = () => quitAsk(g);
       if (mode === 'put') {
         $('oyL').addEventListener('pointerdown', e => {
-          const q = g.cur; if (q.done || g.paused) return;
+          const q = g.cur; if (q.done || isPaused(g)) return;
           const r = $('oyL').getBoundingClientRect();
           const x = (e.clientX - r.left) / r.width;
           const k = Math.max(L.k0, Math.min(L.k1, Math.round(L.k0 + x * (L.k1 - L.k0))));
@@ -534,7 +536,7 @@
       $('oyB' + p.k).querySelectorAll('button').forEach(b => b.addEventListener('pointerdown', e => { e.preventDefault(); tap(p, b); }));
     }
     function tap(p, b) {
-      const q = p.cur; if (!q || q.done || g.over || g.paused || p.frozen > performance.now()) return;
+      const q = p.cur; if (!q || q.done || g.over || isPaused(g) || p.frozen > performance.now()) return;
       g.started = true; p.n++;
       if (+b.dataset.v === q.a) {
         q.done = true; p.sc++; b.classList.add('ok'); sndOk();

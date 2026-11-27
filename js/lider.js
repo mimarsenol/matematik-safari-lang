@@ -80,20 +80,36 @@
       <div style="font-size:54px">🏆🎉</div><h2 style="margin:4px 0">Tebrikler, şampiyon!</h2>
       <p style="margin:4px 0">Geçen haftanın 1.'si sensin. Ödülünü almak için bu ekranı annene ya da babana göster.</p>
       <button class="btn" id="pzWin">👨‍👩‍👦 Veli: ödülü al</button></div>`;
-    h += `<div class="card" style="display:flex;gap:12px;align-items:center;border:3px solid var(--pri)">
+    h += `<div class="card" style="border:3px solid var(--pri)"><div style="display:flex;gap:12px;align-items:center">
       <div style="font-size:46px;line-height:1">${o.resim ? `<img src="${esc(o.resim)}" alt="" style="width:64px;height:64px;object-fit:cover;border-radius:14px">` : '🎁'}</div>
       <div style="flex:1;font-size:15px"><b style="font-size:17px">Haftanın ödülü: ${esc(o.urun)}</b><br>
       Bu hafta en çok puanı toplayan kazanır. Şans yok: puanı, çözdüğün sorular getirir! <span class="muted">· Bitmesine ${timeLeft(y.bitis)}</span></div></div>
+      <button id="pzLogo" aria-label="Ödül sponsoru 3D Fabrikam" style="display:flex;align-items:center;gap:10px;width:100%;margin-top:10px;padding:8px 10px;border:2px solid var(--line);border-radius:14px;background:#fff;font:inherit;text-align:left;cursor:pointer">
+        ${SPONSOR_LOGO}<span style="flex:1;line-height:1.2"><span class="muted" style="font-size:12px">Ödül sponsoru</span><br><b>3D Fabrikam</b> <span class="muted" style="font-size:13px">3dfabrikam.com.tr</span></span><span aria-hidden="true">↗</span></button></div>`;
+    h += `
       <button class="btn ghost" id="pzPar" style="font-size:16px">👨‍👩‍👦 Veliler için: ödül ve katılım şartları</button>`;
     if (p && p.top && p.top.length) h += `<div class="card" style="font-size:15px"><b>Geçen hafta</b> <span class="muted">(#${p.week})</span><br>
       ${p.kazanan ? `🏆 Şampiyon: <b>${esc(p.kazanan)}</b> — tebrikler! 🎉` : `${p.top.map((t, i) => `${medal(i)} ${esc(t.u)} ⭐ ${t.xp}`).join(' · ')}<br><span class="muted">Şampiyon, puanlar kontrol edildikten sonra burada duyurulur.</span>`}</div>`;
     box.innerHTML = h;
     $('pzPar').onclick = () => parentGate(() => rulesModal(o));
+    $('pzLogo').onclick = () => parentGate(() => siteModal(o));
     if ($('pzWin')) $('pzWin').onclick = () => parentGate(() => claimModal(o, me.odul, A));
   }
 
+  // Sponsor: 3D Fabrikam (logo sitede /odul/3dfabrikam.svg; bağlantılar yalnızca ebeveyn kapısından sonra)
+  const SPONSOR_URL = 'https://www.3dfabrikam.com.tr/';
+  const SPONSOR_LOGO = '<img src="/odul/3dfabrikam.svg" alt="3D Fabrikam" width="40" height="40" style="width:40px;height:40px;border-radius:10px;flex:none">';
+  const linkBtn = (href, text, ghost) => `<a class="btn${ghost ? ' ghost' : ''}" href="${esc(href)}" target="_blank" rel="noopener" style="display:block;text-align:center;text-decoration:none">${text}</a>`;
+  function siteModal(o) {
+    openModal(`<div class="head">${SPONSOR_LOGO.replace(/40/g, '72')}<h2>3D Fabrikam</h2>
+      <p class="muted">Haftalık yarışmanın ödül sponsoru. Ödüller 3D yazıcıyla üretilip gönderilir.</p></div>
+      ${linkBtn(SPONSOR_URL, '🌐 3dfabrikam.com.tr sitesini aç')}
+      ${o.link && o.link !== SPONSOR_URL ? linkBtn(o.link, '🛒 Bu haftanın ödülünü gör', true) : ''}
+      <button class="btn ghost" onclick="closeModal()">Kapat</button>`);
+  }
+
   function rulesModal(o) {
-    openModal(`<div class="head"><div class="big">🎁</div><h2>Haftalık ödüllü yarışma</h2></div>
+    openModal(`<div class="head">${SPONSOR_LOGO.replace(/40/g, '64')}<h2>Haftalık ödüllü yarışma</h2><p class="muted" style="margin:2px 0">Ödül sponsoru: <b>3D Fabrikam</b></p></div>
       <div style="font-size:15px;text-align:left">
       <p><b>Ödül:</b> ${esc(o.urun)}. 3dfabrikam tarafından ücretsiz gönderilir.</p>
       <ul style="padding-left:20px;margin:6px 0">
@@ -104,7 +120,8 @@
         <li>Ödül için çocuktan bilgi istenmez: kazananın velisi, uygulamada çıkan kodu e-postayla gönderir.</li>
       </ul>
       <p><a href="/yarisma.html" target="_blank" rel="noopener">Katılım şartlarının tamamı</a> · <a href="/gizlilik.html" target="_blank" rel="noopener">Gizlilik</a></p></div>
-      ${o.link ? `<a class="btn" href="${esc(o.link)}" target="_blank" rel="noopener" style="display:block;text-align:center;text-decoration:none">🛒 Ödülü 3dfabrikam'da gör</a>` : ''}
+      ${o.link ? linkBtn(o.link, "🛒 Ödülü 3dfabrikam'da gör") : ''}
+      ${linkBtn(SPONSOR_URL, '🌐 3dfabrikam.com.tr', true)}
       <button class="btn ghost" onclick="closeModal()">Kapat</button>`);
   }
 
